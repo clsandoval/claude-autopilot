@@ -76,8 +76,8 @@ class ConfirmDialog(ModalScreen[bool]):
         align: center middle;
     }
     #dialog {
-        background: $surface;
-        border: solid $border;
+        background: #FAF7F2;
+        border: solid #E5DFD6;
         padding: 2 4;
         width: 60;
         height: auto;
@@ -125,6 +125,7 @@ class AutopilotApp(App[None]):
 
     def __init__(self, api: AutopilotAPI) -> None:
         super().__init__()
+        self.theme = "textual-ansi"
         self._api = api
         self._selected_id: str | None = None
         self._sessions: list[dict] = []
@@ -157,7 +158,6 @@ class AutopilotApp(App[None]):
         yield Footer()
 
     def on_mount(self) -> None:
-        self.dark = False  # Force light mode
         # Set panel sizes via inline styles
         self.query_one("#left-panel").styles.width = "34%"
         self.query_one("#right-panels").styles.width = "66%"

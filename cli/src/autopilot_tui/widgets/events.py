@@ -24,7 +24,7 @@ class EventStreamWidget(Widget):
     }
     #events-rich-log {
         height: 1fr;
-        background: $surface;
+        background: #F0EBE3;
         padding: 0 1;
     }
     """
