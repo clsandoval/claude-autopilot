@@ -1,322 +1,292 @@
-"""Claude light-mode theme for Autopilot TUI."""
+"""Claude light-mode theme for Autopilot TUI — uses inline hex colors."""
 
 THEME_CSS = """
-/* ── Palette ───────────────────────────────────────────────── */
-$bg:           #FAF7F2;
-$surface:      #F0EBE3;
-$border:       #E5DFD6;
-$text:         #2D2B28;
-$text-sec:     #6B6560;
-$muted:        #A89F95;
-$text-dim:     #BDB5AB;
-$accent:       #C17A4A;
-$warning:      #D4874A;
-$success:      #7D9B76;
-$error:        #B85C5C;
-
-/* ── App shell ─────────────────────────────────────────────── */
 Screen {
-    background: $bg;
-    color: $text;
+    background: #FAF7F2;
+    color: #2D2B28;
 }
 
-/* ── Panels ────────────────────────────────────────────────── */
 #left-panel {
     width: 34%;
-    background: $surface;
-    border-right: solid $border;
+    background: #F0EBE3;
+    border-right: solid #E5DFD6;
 }
 
 #right-top {
-    background: $bg;
+    background: #FAF7F2;
 }
 
 #right-bottom {
     height: 18;
-    background: $surface;
-    border-top: solid $border;
+    background: #F0EBE3;
+    border-top: solid #E5DFD6;
 }
 
-/* ── Tab bar ───────────────────────────────────────────────── */
 TabbedContent {
-    background: $bg;
+    background: #FAF7F2;
 }
 
 TabbedContent ContentSwitcher {
-    background: $bg;
+    background: #FAF7F2;
 }
 
 Tabs {
-    background: $surface;
-    border-bottom: solid $border;
+    background: #F0EBE3;
+    border-bottom: solid #E5DFD6;
 }
 
 Tab {
-    color: $text-sec;
-    background: $surface;
+    color: #6B6560;
+    background: #F0EBE3;
 }
 
 Tab.-active {
-    color: $accent;
-    background: $bg;
-    border-bottom: solid $accent;
+    color: #C17A4A;
+    background: #FAF7F2;
+    border-bottom: solid #C17A4A;
 }
 
 Tab:hover {
-    color: $text;
-    background: $bg;
+    color: #2D2B28;
+    background: #FAF7F2;
 }
 
-/* ── Session list ──────────────────────────────────────────── */
 #session-list {
-    background: $surface;
+    background: #F0EBE3;
     padding: 0;
 }
 
 .session-item {
     padding: 1 2;
-    border-bottom: solid $border;
-    color: $text;
+    border-bottom: solid #E5DFD6;
+    color: #2D2B28;
 }
 
 .session-item:hover {
-    background: $bg;
+    background: #FAF7F2;
 }
 
 .session-item.--selected {
-    background: $bg;
-    border-left: thick $accent;
+    background: #FAF7F2;
+    border-left: thick #C17A4A;
 }
 
 .status-running {
-    color: $success;
+    color: #7D9B76;
 }
 
 .status-blocked {
-    color: $warning;
+    color: #D4874A;
 }
 
 .status-done {
-    color: $muted;
+    color: #A89F95;
 }
 
 .status-error {
-    color: $error;
+    color: #B85C5C;
 }
 
 .session-name {
-    color: $text;
+    color: #2D2B28;
     text-style: bold;
 }
 
 .session-meta {
-    color: $text-sec;
+    color: #6B6560;
 }
 
-/* ── Panel titles ──────────────────────────────────────────── */
 .panel-title {
-    background: $surface;
-    color: $text-sec;
+    background: #F0EBE3;
+    color: #6B6560;
     padding: 0 2;
-    border-bottom: solid $border;
+    border-bottom: solid #E5DFD6;
     text-style: bold;
 }
 
-/* ── Progress tab ──────────────────────────────────────────── */
 #progress-content {
     padding: 1 2;
     overflow-y: auto;
 }
 
 .phase-complete {
-    color: $success;
+    color: #7D9B76;
 }
 
 .phase-active {
-    color: $accent;
+    color: #C17A4A;
 }
 
 .phase-pending {
-    color: $muted;
+    color: #A89F95;
 }
 
 .section-header {
-    color: $text-sec;
+    color: #6B6560;
     text-style: bold;
     margin-top: 1;
-    border-bottom: solid $border;
+    border-bottom: solid #E5DFD6;
 }
 
 .decision-item {
-    color: $text;
+    color: #2D2B28;
     margin-left: 2;
 }
 
 .decision-time {
-    color: $muted;
+    color: #A89F95;
 }
 
 .usage-label {
-    color: $text-sec;
+    color: #6B6560;
 }
 
 .usage-value {
-    color: $text;
+    color: #2D2B28;
 }
 
-/* ── Artifacts tab ─────────────────────────────────────────── */
 #artifacts-content {
     padding: 1 2;
     overflow-y: auto;
 }
 
 .artifact-item {
-    color: $text;
+    color: #2D2B28;
     margin-bottom: 0;
 }
 
 .artifact-time {
-    color: $muted;
+    color: #A89F95;
 }
 
 .empty-state {
-    color: $muted;
+    color: #A89F95;
     padding: 2;
 }
 
-/* ── Question tab ──────────────────────────────────────────── */
 #question-content {
     padding: 1 2;
     overflow-y: auto;
 }
 
 .question-text {
-    color: $text;
+    color: #2D2B28;
     text-style: bold;
     margin-bottom: 1;
 }
 
 .question-context {
-    color: $text-sec;
+    color: #6B6560;
     margin-bottom: 1;
 }
 
 .option-card {
-    background: $surface;
-    border: solid $border;
+    background: #F0EBE3;
+    border: solid #E5DFD6;
     padding: 0 1;
     margin-bottom: 0;
-    color: $text;
+    color: #2D2B28;
 }
 
 .option-card:hover {
-    border: solid $accent;
-    color: $accent;
+    border: solid #C17A4A;
+    color: #C17A4A;
 }
 
 .option-card.--selected {
-    border: solid $accent;
-    background: $bg;
-    color: $accent;
+    border: solid #C17A4A;
+    background: #FAF7F2;
+    color: #C17A4A;
 }
 
 .option-label {
-    color: $accent;
+    color: #C17A4A;
     text-style: bold;
 }
 
-/* ── Events stream ─────────────────────────────────────────── */
 #events-log {
     padding: 0 1;
     overflow-y: auto;
-    background: $surface;
+    background: #F0EBE3;
 }
 
 .event-line {
-    color: $text-sec;
+    color: #6B6560;
 }
 
 .event-phase {
-    color: $success;
+    color: #7D9B76;
     text-style: bold;
 }
 
 .event-question {
-    color: $warning;
+    color: #D4874A;
     text-style: bold;
 }
 
 .event-time {
-    color: $muted;
+    color: #A89F95;
 }
 
-/* ── Answer input ──────────────────────────────────────────── */
 #answer-input {
-    background: $surface;
-    border-top: solid $border;
-    border: solid $border;
-    color: $text;
+    background: #F0EBE3;
+    border: solid #E5DFD6;
+    color: #2D2B28;
     padding: 0 1;
 }
 
 #answer-input:focus {
-    border: solid $accent;
+    border: solid #C17A4A;
 }
 
-/* ── Buttons ───────────────────────────────────────────────── */
 Button {
-    background: $surface;
-    border: solid $border;
-    color: $text;
+    background: #F0EBE3;
+    border: solid #E5DFD6;
+    color: #2D2B28;
 }
 
 Button:hover {
-    background: $bg;
-    border: solid $accent;
-    color: $accent;
+    background: #FAF7F2;
+    border: solid #C17A4A;
+    color: #C17A4A;
 }
 
 Button.-primary {
-    background: $accent;
-    color: $bg;
-    border: solid $accent;
+    background: #C17A4A;
+    color: #FAF7F2;
+    border: solid #C17A4A;
 }
 
 Button.-primary:hover {
-    background: $warning;
-    border: solid $warning;
+    background: #D4874A;
+    border: solid #D4874A;
 }
 
-/* ── Scrollbar ─────────────────────────────────────────────── */
 ScrollBar {
-    background: $surface;
+    background: #F0EBE3;
 }
 
 ScrollBar > .scrollbar--bar {
-    color: $border;
-    background: $border;
+    color: #E5DFD6;
 }
 
 ScrollBar > .scrollbar--bar:hover {
-    color: $muted;
-    background: $muted;
+    color: #A89F95;
 }
 
-/* ── Footer ────────────────────────────────────────────────── */
 Footer {
-    background: $surface;
-    color: $text-sec;
-    border-top: solid $border;
+    background: #F0EBE3;
+    color: #6B6560;
+    border-top: solid #E5DFD6;
 }
 
-/* ── Dialog / overlay ──────────────────────────────────────── */
 ModalScreen {
     background: rgba(0, 0, 0, 0.4);
 }
 
 #dialog {
-    background: $bg;
-    border: solid $border;
+    background: #FAF7F2;
+    border: solid #E5DFD6;
     padding: 2 4;
     width: 60;
     height: auto;
@@ -324,12 +294,12 @@ ModalScreen {
 
 #dialog-title {
     text-style: bold;
-    color: $text;
+    color: #2D2B28;
     margin-bottom: 1;
 }
 
 #dialog-message {
-    color: $text-sec;
+    color: #6B6560;
     margin-bottom: 2;
 }
 

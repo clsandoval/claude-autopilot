@@ -111,8 +111,6 @@ class ConfirmDialog(ModalScreen[bool]):
 
 class AutopilotApp(App[None]):
     CSS = THEME_CSS
-    DARK = False  # Force light mode — theme is designed for light backgrounds
-
     BINDINGS = [
         Binding("q", "quit", "Quit"),
         Binding("r", "refresh", "Refresh"),
@@ -159,6 +157,7 @@ class AutopilotApp(App[None]):
         yield Footer()
 
     def on_mount(self) -> None:
+        self.dark = False  # Force light mode
         # Set panel sizes via inline styles
         self.query_one("#left-panel").styles.width = "34%"
         self.query_one("#right-panels").styles.width = "66%"
@@ -235,7 +234,6 @@ class AutopilotApp(App[None]):
         status = session.get("_display_status", _raw_status(session))
         if status not in ("running", "blocked"):
             return
-        await self._api.get_events  # ensure API alive
         self._load_session_events(self._selected_id)
 
     def _get_session(self, session_id: str) -> dict | None:
@@ -403,17 +401,8 @@ def _raw_status(session: dict) -> str:
 # ── Entry point ────────────────────────────────────────────────────────────────
 
 def main() -> None:
-    import asyncio
-
     api_key, environment_id = _load_config()
     api = AutopilotAPI(api_key, environment_id)
     app = AutopilotApp(api)
-    try:
-        app.run()
-    finally:
-        try:
-            loop = asyncio.get_event_loop()
-            if not loop.is_closed():
-                loop.run_until_complete(api.close())
-        except RuntimeError:
-            asyncio.run(api.close())
+    app.run()
+    # httpx client is garbage-collected; no manual cleanup needed
