@@ -24,13 +24,15 @@ class AutopilotAPI:
         await self._client.aclose()
 
     async def list_sessions(self) -> list[dict]:
-        resp = await self._client.get(
-            "/v1/sessions",
-            params={"environment_id": self._environment_id},
-        )
+        resp = await self._client.get("/v1/sessions")
         resp.raise_for_status()
         data = resp.json()
-        return data.get("data", data) if isinstance(data, dict) else data
+        sessions = data.get("data", data) if isinstance(data, dict) else data
+        # Filter to our environment client-side
+        return [
+            s for s in sessions
+            if s.get("environment_id") == self._environment_id
+        ]
 
     async def get_session(self, session_id: str) -> dict:
         resp = await self._client.get(f"/v1/sessions/{session_id}")
@@ -59,7 +61,7 @@ class AutopilotAPI:
                 "events": [
                     {
                         "type": "user.custom_tool_result",
-                        "tool_use_id": tool_use_id,
+                        "custom_tool_use_id": tool_use_id,
                         "content": [{"type": "text", "text": content}],
                     }
                 ]

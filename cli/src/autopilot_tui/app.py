@@ -111,6 +111,7 @@ class ConfirmDialog(ModalScreen[bool]):
 
 class AutopilotApp(App[None]):
     CSS = THEME_CSS
+    DARK = False  # Force light mode — theme is designed for light backgrounds
 
     BINDINGS = [
         Binding("q", "quit", "Quit"),
