@@ -59,24 +59,66 @@ The brainstorming skill's checklist IS Phase 1 + Phase 2. Once the user approves
 ### Phase 4: Implementation
 
 1. Create branch: `autopilot/<slug>`
-2. Work through plan tasks using TDD cycle:
-   - Write test (watch it fail)
-   - Implement the code
-   - Make test pass
-   - Commit
-3. Push after each phase and every ~5 implementation commits
-4. Follow existing codebase patterns — read files before writing, match style, don't refactor unrelated code
-5. YAGNI — implement what the brief asks, not what might be useful someday
+
+2. **Install dependencies first.** Before writing any code:
+   - Read `package.json`, `pyproject.toml`, `requirements.txt`, `go.mod`, etc.
+   - Run the install command (`npm install`, `pip install -e ".[dev]"`, etc.)
+   - Verify the install succeeded. If it fails, fix it before proceeding.
+
+3. **Write a test BEFORE writing code.** For every task:
+   - Write the test first. Run it. Watch it fail.
+   - Implement the code.
+   - Run the test again. Watch it pass.
+   - If it doesn't pass, fix the code — do NOT commit broken code.
+   - Commit only after the test passes.
+
+4. **YOU MUST ACTUALLY RUN YOUR CODE.** This is non-negotiable:
+   - After writing code, run it with bash. Read stdout AND stderr.
+   - If it crashes, fix it. If it has import errors, fix them. If the output is wrong, fix it.
+   - For UI code (Textual, React, etc.): use the framework's headless test mode.
+     - Textual: `app.run_test(size=(120, 40))` with assertions on widget state
+     - React: `jest` / `vitest` with `@testing-library/react`
+     - CLI tools: run the binary and check the output
+   - For libraries: write a small script that imports and exercises the API.
+   - **NEVER commit code you haven't executed.** If you can't run it, explain why in ask_user and let the user decide.
+
+5. **Verify after EVERY commit.** After each commit:
+   - Run the full test suite (not just the new test)
+   - If anything regresses, fix it before the next task
+   - `git diff --stat` to sanity-check you're not committing junk
+
+6. Push after each phase and every ~5 implementation commits.
+7. Follow existing codebase patterns — read files before writing, match style.
+8. YAGNI — implement what the brief asks, not what might be useful someday.
+
+---
+
+### Phase 4.5: Smoke Test (MANDATORY before Phase 5)
+
+Before declaring implementation complete, run a full end-to-end smoke test:
+
+1. **Install from scratch** — `pip install -e .` or `npm install` in a clean state
+2. **Run the entry point** — execute the actual binary/script/app, not just tests
+3. **Exercise every user-facing flow** — if it's a CLI, run the commands; if it's a TUI, use headless mode; if it's an API, curl the endpoints
+4. **Check for runtime errors** — import errors, missing dependencies, typos, wrong API versions
+5. **Fix everything you find** — this is your last chance before the user sees it
+
+If the app requires credentials you don't have (API keys, database connections):
+- Write tests that mock the external dependency
+- Test everything else end-to-end
+- Document what couldn't be tested and why in the PR description
+- Do NOT skip testing entirely because one dependency is missing
 
 ---
 
 ### Phase 5: Completion
 
-1. Run the full test suite — fix any regressions before calling this done
+1. Run the full test suite one final time — all tests must pass.
 2. If the task produced code:
    - Push the branch and create a PR using `gh pr create`
    - PR title: same as brief slug (human-readable)
    - PR body: summary of what was built, key decisions, how to test
+   - Include test results in the PR body (copy-paste the pytest/jest output)
 3. If the task produced research or a document:
    - Commit the final artifact with `autopilot: complete <slug>`
 4. Write a completion summary (see Message Discipline below)
@@ -186,13 +228,13 @@ How to test:
 
 ## Tool Installation
 
-The container comes with Python 3.11, Node.js, git, and common CLI tools. If you need something else:
+The container is Ubuntu 22.04 with: Python 3.12, Node 20, Go 1.22, Rust 1.77, Java 21, Ruby 3.3, PHP 8.3, GCC 13, git, curl, wget, jq, ripgrep, SQLite. If you need something else:
 
 - System packages: `apt-get update && apt-get install -y <package>`
 - Python packages: `pip install <package>`
 - Node packages: `npm install -g <package>`
 
-Install tools early — during exploration phase, not mid-implementation.
+**Install ALL dependencies during Phase 4 setup, before writing any code.** Verify installs succeed. Do not discover missing deps mid-implementation.
 
 ---
 
