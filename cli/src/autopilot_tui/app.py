@@ -23,7 +23,7 @@ from autopilot_tui.parser import (
     session_status,
     time_ago,
 )
-from autopilot_tui.theme import THEME_CSS
+from autopilot_tui.theme import AUTOPILOT_THEME, THEME_CSS
 from autopilot_tui.widgets.artifacts import ArtifactsWidget
 from autopilot_tui.widgets.events import EventStreamWidget
 from autopilot_tui.widgets.progress import ProgressWidget
@@ -68,7 +68,8 @@ class AutopilotApp(App[None]):
 
     def __init__(self, api: AutopilotAPI) -> None:
         super().__init__()
-        self.theme = "textual-ansi"
+        self.register_theme(AUTOPILOT_THEME)
+        self.theme = "autopilot"
         self._api = api
         self._selected_id: str | None = None
         self._sessions: list[dict] = []
