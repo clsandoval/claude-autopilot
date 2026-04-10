@@ -6,15 +6,17 @@ Two modes of intake, chosen based on user preference:
 
 ### Mode 1: Brainstorm Locally, Then Dispatch
 ```
-Local brainstorm → Configure agent (skills, tools) → Create agent → Create session → Dispatch brief
+Local brainstorm → Define rubric → Configure agent (skills, tools) → Create agent → Create session → Dispatch with outcome
 ```
 
 ### Mode 2: Dispatch Fast, Answer Questions Later
 ```
-Gather brief + repo → Configure agent (with ask_user) → Create agent → Dispatch → User answers via /autopilot status
+Gather brief + repo → Define rubric → Configure agent (with ask_user) → Create agent → Dispatch with outcome → User answers via /autopilot status
 ```
 
 **Ask the user which mode they want.** If they say "just dispatch it" or seem eager to move on, use Mode 2.
+
+**Both modes require a rubric before dispatch.** The rubric is how you define "done" — the harness provisions a separate grader that evaluates the agent's work against it after each iteration. Without a rubric, the agent decides when it's done, which is how you get half-finished work.
 
 ## Phase 1: Gather the Brief
 
@@ -38,7 +40,85 @@ The brief should be specific enough that the agent can execute without interpret
 2. **Confirm repo and branch** — Default to this repo, main branch
 3. **Dispatch immediately** — The agent will explore, brainstorm, and ask questions via `ask_user`
 
-## Phase 2: Configure the Agent
+## Phase 2: Define the Rubric
+
+Before configuring the agent, define what "done" looks like. The rubric is a markdown document with explicit, gradeable criteria that a separate grader will evaluate the agent's work against. The grader runs in its own context window — it can't be influenced by the agent's reasoning.
+
+### Why This Matters
+
+The managed agents harness is opaque — you can't see what the agent is thinking or steer it mid-flight. The rubric is your only lever for quality. A vague rubric ("code should be good") produces vague work. A specific rubric ("all routes return 200, tests cover edge cases, no TODO comments in committed code") produces specific, verifiable work.
+
+### How to Write the Rubric
+
+**Structure as explicit, gradeable criteria.** Each criterion should be independently scorable as pass/fail. The grader scores each one separately.
+
+**Derive from the brief:**
+- Mode 1 (local brainstorm): You already have decisions, approach, and constraints — turn those into acceptance criteria
+- Mode 2 (fast dispatch): Extract criteria from whatever the user provided, plus standard quality gates
+
+**Always include these baseline criteria** (adapt to task type):
+
+For code tasks:
+```markdown
+## Code Quality
+- No TODO, FIXME, or placeholder comments in committed code
+- All new code has corresponding tests
+- Tests pass (`npm test` / `pytest` / equivalent)
+- No import errors or runtime crashes on startup
+
+## Deliverables
+- Branch pushed to origin with clean commit history
+- All files referenced in the spec exist and are non-empty
+
+## Scope
+- Only changes related to the brief — no unrelated refactoring
+- Follows existing codebase patterns (naming, file organization, style)
+```
+
+For research/spec tasks:
+```markdown
+## Completeness
+- All sections from the brief are addressed
+- No "TBD" or empty sections
+- Concrete recommendations with rationale, not just options listed
+
+## Quality
+- Internal consistency — no contradictions between sections
+- Claims are backed by evidence (code references, data, sources)
+```
+
+**Add task-specific criteria** based on the brief. Examples:
+- "The webhook handler processes all 5 Stripe event types listed in the brief"
+- "The CLI tool accepts --format json|csv and outputs valid data in both"
+- "The migration is reversible — includes both up and down SQL"
+
+### Present the Rubric to the User
+
+Show the rubric before dispatch. Format:
+
+```
+## Rubric for: <brief>
+
+<rubric content>
+
+Does this capture what "done" looks like? I can add, remove, or sharpen any criteria.
+```
+
+Wait for user approval or edits. This is a mandatory checkpoint — don't skip it.
+
+### Max Iterations
+
+Ask the user how many grading iterations the agent should get. Default: 3. Max: 20.
+
+- **3** (default) — Good for well-defined tasks with clear criteria
+- **5** — Better for complex tasks where the first attempt likely needs revision
+- **10+** — Only for open-ended or exploratory work
+
+Store the approved rubric text and max_iterations for Phase 4.
+
+---
+
+## Phase 3: Configure the Agent
 
 Based on the task, decide what the agent needs.
 
@@ -96,7 +176,7 @@ Add this to the skills array for every agent:
 ### Q4: Any additional constraints?
 Optional — tech stack, timeline, what NOT to do, etc.
 
-## Phase 3: Create the Agent
+## Phase 4: Create the Agent
 
 Create a fresh agent tailored to this specific job. Each dispatch gets its own agent with the right skills and tools.
 
@@ -145,7 +225,7 @@ AGENT_ID=$(echo "$AGENT_RESPONSE" | jq -r '.id')
 AGENT_VERSION=$(echo "$AGENT_RESPONSE" | jq -r '.version')
 ```
 
-## Phase 4: Create Session & Dispatch
+## Phase 5: Create Session & Dispatch
 
 ### Step 0: Upload Credentials File (if .env exists)
 
@@ -201,7 +281,7 @@ RESOURCES=$(jq -n \
 curl -sS https://api.anthropic.com/v1/sessions \
   -H "x-api-key: $ANTHROPIC_API_KEY" \
   -H "anthropic-version: 2023-06-01" \
-  -H "anthropic-beta: managed-agents-2026-04-01" \
+  -H "anthropic-beta: managed-agents-2026-04-01-research-preview" \
   -H "content-type: application/json" \
   -d "$(jq -n \
     --arg agent_id "$AGENT_ID" \
@@ -219,20 +299,33 @@ curl -sS https://api.anthropic.com/v1/sessions \
     }')"
 ```
 
-### Step 2: Send the Brief
+### Step 2: Define the Outcome
+
+Send the brief as a `user.define_outcome` event with the rubric. This replaces the old `user.message` dispatch — the harness provisions a separate grader that evaluates the agent's work against the rubric after each iteration.
+
+**Requires research preview beta header.**
+
 ```bash
 curl -sS "https://api.anthropic.com/v1/sessions/$SESSION_ID/events" \
   -H "x-api-key: $ANTHROPIC_API_KEY" \
   -H "anthropic-version: 2023-06-01" \
-  -H "anthropic-beta: managed-agents-2026-04-01" \
+  -H "anthropic-beta: managed-agents-2026-04-01-research-preview" \
   -H "content-type: application/json" \
-  -d "$(jq -n --arg text "$BRIEF_TEXT" '{
-    events: [{
-      type: "user.message",
-      content: [{type: "text", text: $text}]
-    }]
-  }')"
+  -d "$(jq -n \
+    --arg description "$BRIEF_TEXT" \
+    --arg rubric "$RUBRIC_TEXT" \
+    --argjson max_iterations "$MAX_ITERATIONS" \
+    '{
+      events: [{
+        type: "user.define_outcome",
+        description: $description,
+        rubric: {type: "text", content: $rubric},
+        max_iterations: $max_iterations
+      }]
+    }')"
 ```
+
+The response echoes back the event with a `processed_at` timestamp and `outcome_id`. Save the `outcome_id` for status tracking.
 
 ### Step 3: Save Session to Local State
 ```bash
@@ -246,6 +339,8 @@ jq \
   --arg branch "autopilot/$SLUG" \
   --arg base_branch "$BASE_BRANCH" \
   --arg agent_id "$AGENT_ID" \
+  --arg outcome_id "$OUTCOME_ID" \
+  --argjson max_iterations "$MAX_ITERATIONS" \
   --arg started_at "$STARTED_AT" \
   '.sessions += [{
     id: $id,
@@ -254,6 +349,8 @@ jq \
     branch: $branch,
     base_branch: $base_branch,
     agent_id: $agent_id,
+    outcome_id: $outcome_id,
+    max_iterations: $max_iterations,
     started_at: $started_at,
     status: "running",
     last_checked_at: null
@@ -263,16 +360,19 @@ jq \
 
 ### Step 4: Confirm to User
 ```
-Session dispatched.
+Session dispatched with outcome grading.
 
-  Session ID : <SESSION_ID>
-  Brief      : <BRIEF>
-  Repo       : <REPO_URL>
-  Branch     : autopilot/<SLUG>
-  Base branch: <BASE_BRANCH>
-  Agent      : <AGENT_ID> (skills: <skill list>)
+  Session ID     : <SESSION_ID>
+  Outcome ID     : <OUTCOME_ID>
+  Brief          : <BRIEF>
+  Repo           : <REPO_URL>
+  Branch         : autopilot/<SLUG>
+  Base branch    : <BASE_BRANCH>
+  Agent          : <AGENT_ID> (skills: <skill list>)
+  Max iterations : <MAX_ITERATIONS>
 
-The agent is executing on Anthropic's infrastructure. Use /autopilot status to check progress.
+The agent is executing on Anthropic's infrastructure. A separate grader will evaluate
+each iteration against your rubric. Use /autopilot status to check progress and grading results.
 ```
 
 ## Slugifying the Brief
