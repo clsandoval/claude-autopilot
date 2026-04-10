@@ -120,16 +120,19 @@ def extract_artifacts(events: list[dict]) -> list[Artifact]:
     artifacts: list[Artifact] = []
     seen_paths: set[str] = set()
     for event in events:
-        if event.get("type") not in ("agent.tool_use", "agent.tool_result"):
+        if event.get("type") != "agent.tool_use":
             continue
-        name = event.get("name") or (event.get("tool") or {}).get("name", "")
+        name = event.get("name", "")
         if name != "write":
             continue
         inp = event.get("input") or {}
         path = inp.get("file_path") or inp.get("path", "")
         if path and path not in seen_paths:
             seen_paths.add(path)
-            artifacts.append(Artifact(path=path, timestamp=_ts(event)))
+            # Strip workspace prefix for readability
+            display_path = path.replace("/workspace/repo/", "")
+            ts = event.get("processed_at") or _ts(event)
+            artifacts.append(Artifact(path=display_path, timestamp=ts))
     return artifacts
 
 

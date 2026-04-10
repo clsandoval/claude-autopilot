@@ -242,7 +242,43 @@ async def test_session_list_no_unnecessary_rebuild(app):
         assert items_before == items_after
 
 
-# ── Test 9: Screenshot captures without error ────────────────────────────────
+# ── Test 9: Artifacts tab shows files for sessions with writes ────────────────
+
+
+@pytest.mark.asyncio
+async def test_artifacts_tab_shows_files(app):
+    """Artifacts tab shows written files for sessions that have them."""
+    async with app.run_test(size=(120, 40)) as pilot:
+        await asyncio.sleep(3)
+        await pilot.pause()
+
+        if not app._sessions:
+            pytest.skip("No sessions available")
+
+        # Find a session with artifacts (the TUI session has 14)
+        from autopilot_tui.parser import extract_artifacts
+        target_sid = None
+        for s in app._sessions:
+            sid = s.get("id")
+            from autopilot_tui.widgets.session_list import SessionSelected
+            app.post_message(SessionSelected(sid))
+            await asyncio.sleep(3)
+            await pilot.pause()
+            events = app._events.get(sid, [])
+            if extract_artifacts(events):
+                target_sid = sid
+                break
+
+        if not target_sid:
+            pytest.skip("No sessions with artifacts")
+
+        from autopilot_tui.widgets.artifacts import ArtifactsWidget
+        aw = app.query_one("#artifacts-widget", ArtifactsWidget)
+        content = str(aw._content.render())
+        assert "file" in content.lower(), f"Artifacts tab should show files. Got: {content[:200]}"
+
+
+# ── Test 10: Screenshot captures without error ───────────────────────────────
 
 
 @pytest.mark.asyncio
