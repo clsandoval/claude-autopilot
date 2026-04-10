@@ -147,11 +147,56 @@ AGENT_VERSION=$(echo "$AGENT_RESPONSE" | jq -r '.version')
 
 ## Phase 4: Create Session & Dispatch
 
+### Step 0: Upload Credentials File (if .env exists)
+
+If the project has a `.env` file, upload it via the Files API so the agent can run integration tests with real credentials. The file is mounted read-only at `/workspace/.env` and scoped to the session.
+
+```bash
+ENV_FILE_ID=""
+if [ -f .env ]; then
+  ENV_UPLOAD_RESPONSE=$(curl -sS -X POST "https://api.anthropic.com/v1/files" \
+    -H "x-api-key: $ANTHROPIC_API_KEY" \
+    -H "anthropic-version: 2023-06-01" \
+    -H "anthropic-beta: files-api-2025-04-14" \
+    -F "file=@.env;filename=.env" \
+    -F "purpose=agent")
+  ENV_FILE_ID=$(echo "$ENV_UPLOAD_RESPONSE" | jq -r '.id // empty')
+  if [ -n "$ENV_FILE_ID" ]; then
+    echo "Uploaded .env as file: $ENV_FILE_ID"
+  else
+    echo "WARNING: .env upload failed. Agent will not have credentials."
+  fi
+fi
+```
+
 ### Step 1: Create Session
+
+Build the resources array: always include the GitHub repo, optionally include the .env file mount.
+
 ```bash
 ENVIRONMENT_ID=$(jq -r '.environment_id' .superpowers/autopilot-config.json)
 VAULT_ID=$(jq -r '.vault_id // empty' .superpowers/autopilot-config.json)
 VAULT_IDS=$([ -n "$VAULT_ID" ] && echo "[\"$VAULT_ID\"]" || echo "[]")
+
+# Build resources JSON — repo + optional .env file
+RESOURCES=$(jq -n \
+  --arg repo_url "$REPO_URL" \
+  --arg github_token "$GITHUB_TOKEN" \
+  --arg base_branch "$BASE_BRANCH" \
+  --arg env_file_id "$ENV_FILE_ID" \
+  '[
+    {
+      type: "github_repository",
+      url: $repo_url,
+      mount_path: "/workspace/repo",
+      authorization_token: $github_token,
+      checkout: {type: "branch", name: $base_branch}
+    }
+  ] + (if $env_file_id != "" then [{
+      type: "file",
+      file_id: $env_file_id,
+      mount_path: "/workspace/.env"
+    }] else [] end)')
 
 curl -sS https://api.anthropic.com/v1/sessions \
   -H "x-api-key: $ANTHROPIC_API_KEY" \
@@ -163,21 +208,13 @@ curl -sS https://api.anthropic.com/v1/sessions \
     --argjson agent_version $AGENT_VERSION \
     --arg environment_id "$ENVIRONMENT_ID" \
     --arg title "autopilot: $SLUG" \
-    --arg repo_url "$REPO_URL" \
-    --arg github_token "$GITHUB_TOKEN" \
-    --arg base_branch "$BASE_BRANCH" \
+    --argjson resources "$RESOURCES" \
     --argjson vault_ids "$VAULT_IDS" \
     '{
       agent: {type: "agent", id: $agent_id, version: $agent_version},
       environment_id: $environment_id,
       title: $title,
-      resources: [{
-        type: "github_repository",
-        url: $repo_url,
-        mount_path: "/workspace/repo",
-        authorization_token: $github_token,
-        checkout: {type: "branch", name: $base_branch}
-      }],
+      resources: $resources,
       vault_ids: $vault_ids
     }')"
 ```
