@@ -1,1 +1,9 @@
 .superpowers/
+
+# Python bytecode
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+.eggs/
