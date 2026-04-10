@@ -57,18 +57,27 @@ class SessionListWidget(Widget):
         yield ListView(id="session-listview")
 
     def update_sessions(self, sessions: list[dict]) -> None:
-        self._sessions = sorted(sessions, key=_sort_key)
+        sorted_sessions = sorted(sessions, key=_sort_key)
+        # Only rebuild if session IDs or statuses changed
+        new_keys = [(s.get("id"), s.get("_display_status")) for s in sorted_sessions]
+        old_keys = [(s.get("id"), s.get("_display_status")) for s in self._sessions]
+        if new_keys == old_keys:
+            return
+        self._sessions = sorted_sessions
         self._rebuild()
 
     def _rebuild(self) -> None:
         lv: ListView = self.query_one("#session-listview", ListView)
+        saved_index = lv.index
         lv.clear()
         for session in self._sessions:
             item = self._make_item(session)
             lv.append(item)
-        # Re-select if possible
+        # Restore position
         if self.selected_id:
             self._apply_selection(self.selected_id)
+        elif saved_index is not None and saved_index < len(self._sessions):
+            lv.index = saved_index
 
     def _make_item(self, session: dict) -> ListItem:
         sid = session.get("id", "")
