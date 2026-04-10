@@ -402,11 +402,17 @@ def _raw_status(session: dict) -> str:
 # ── Entry point ────────────────────────────────────────────────────────────────
 
 def main() -> None:
+    import asyncio
+
     api_key, environment_id = _load_config()
     api = AutopilotAPI(api_key, environment_id)
     app = AutopilotApp(api)
     try:
         app.run()
     finally:
-        import asyncio
-        asyncio.get_event_loop().run_until_complete(api.close())
+        try:
+            loop = asyncio.get_event_loop()
+            if not loop.is_closed():
+                loop.run_until_complete(api.close())
+        except RuntimeError:
+            asyncio.run(api.close())

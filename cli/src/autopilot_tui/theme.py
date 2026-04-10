@@ -7,7 +7,7 @@ $surface:      #F0EBE3;
 $border:       #E5DFD6;
 $text:         #2D2B28;
 $text-sec:     #6B6560;
-$text-muted:   #A89F95;
+$muted:        #A89F95;
 $text-dim:     #BDB5AB;
 $accent:       #C17A4A;
 $warning:      #D4874A;
@@ -97,7 +97,7 @@ Tab:hover {
 }
 
 .status-done {
-    color: $text-muted;
+    color: $muted;
 }
 
 .status-error {
@@ -137,7 +137,7 @@ Tab:hover {
 }
 
 .phase-pending {
-    color: $text-muted;
+    color: $muted;
 }
 
 .section-header {
@@ -153,7 +153,7 @@ Tab:hover {
 }
 
 .decision-time {
-    color: $text-muted;
+    color: $muted;
 }
 
 .usage-label {
@@ -176,11 +176,11 @@ Tab:hover {
 }
 
 .artifact-time {
-    color: $text-muted;
+    color: $muted;
 }
 
 .empty-state {
-    color: $text-muted;
+    color: $muted;
     padding: 2;
 }
 
@@ -247,7 +247,7 @@ Tab:hover {
 }
 
 .event-time {
-    color: $text-muted;
+    color: $muted;
 }
 
 /* ── Answer input ──────────────────────────────────────────── */
@@ -298,8 +298,8 @@ ScrollBar > .scrollbar--bar {
 }
 
 ScrollBar > .scrollbar--bar:hover {
-    color: $text-muted;
-    background: $text-muted;
+    color: $muted;
+    background: $muted;
 }
 
 /* ── Footer ────────────────────────────────────────────────── */

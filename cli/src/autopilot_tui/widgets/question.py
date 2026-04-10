@@ -46,8 +46,8 @@ class QuestionWidget(Widget):
     }
     """
 
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, **kwargs: object) -> None:
+        super().__init__(**kwargs)
         self._tool_use_id: str = ""
         self._options: list[str] = []
         self._body_content = Static("")

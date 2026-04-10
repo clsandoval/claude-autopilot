@@ -45,8 +45,8 @@ class SessionListWidget(Widget):
     }
     """
 
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, **kwargs: object) -> None:
+        super().__init__(**kwargs)
         self._sessions: list[dict] = []
 
     def compose(self) -> ComposeResult:

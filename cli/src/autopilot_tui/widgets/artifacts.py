@@ -19,8 +19,8 @@ class ArtifactsWidget(Widget):
     }
     """
 
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, **kwargs: object) -> None:
+        super().__init__(**kwargs)
         self._content = Static("")
 
     def compose(self) -> ComposeResult:
