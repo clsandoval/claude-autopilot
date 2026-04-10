@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from textual.app import ComposeResult
-from textual.scroll_view import ScrollView
 from textual.widget import Widget
 from textual.widgets import Label, RichLog
 

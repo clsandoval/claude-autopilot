@@ -81,7 +81,7 @@ class QuestionWidget(Widget):
             letters = "abcdefghij"
             for i, opt in enumerate(self._options):
                 if i < len(letters):
-                    lines.append(f"  [{letters[i].upper()}] {opt}")
+                    lines.append(f"  \\[{letters[i].upper()}] {opt}")
             lines.append("")
 
         self._body_content.update("\n".join(lines))
