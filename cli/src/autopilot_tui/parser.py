@@ -152,7 +152,7 @@ def extract_question(events: list[dict]) -> Question | None:
                 options=inp.get("options") or [],
             )
         elif etype == "user.custom_tool_result":
-            tool_use_id = event.get("tool_use_id", "")
+            tool_use_id = event.get("tool_use_id") or event.get("custom_tool_use_id", "")
             if tool_use_id:
                 answered_ids.add(tool_use_id)
 
