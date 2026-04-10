@@ -5,7 +5,7 @@ description: Use when the user wants to dispatch autonomous background work that
 
 # Autopilot — Managed Agent Command Center
 
-Dispatch autonomous work to Claude Managed Agents with outcome-based grading. The user provides a brief, a rubric is defined to specify what "done" looks like, and the agent runs on Anthropic's infrastructure with a separate grader evaluating each iteration against the rubric. The user checks in asynchronously via `/autopilot status`.
+Dispatch autonomous work to Claude Managed Agents. The user provides a brief (with optional local brainstorming), the agent runs on Anthropic's infrastructure, and the user checks in asynchronously via `/autopilot status`.
 
 **Announce at start:** "I'm using the autopilot skill to [dispatch new work / check status / list sessions]."
 
@@ -37,12 +37,11 @@ The user wants to fire and forget. Send a brief (can be vague), and the agent wi
 1. Read `setup.md` — ensure one-time environment setup is complete (environment_id in config)
 2. Read `intake.md` — run the intake flow:
    - Determine mode (local brainstorm vs fast dispatch)
-   - If Mode 1: brainstorm locally, define rubric, then configure and dispatch
-   - If Mode 2: gather brief + repo/branch, define rubric, configure and dispatch quickly
-   - **Define rubric** — mandatory step: write gradeable criteria, present to user for approval
+   - If Mode 1: brainstorm locally, then configure and dispatch
+   - If Mode 2: gather brief + repo/branch, configure and dispatch quickly
    - Configure agent: repo, branch, skills, include `ask_user` custom tool
    - Create agent per-job with selected skills
-   - Create session and dispatch with `user.define_outcome` (not `user.message`)
+   - Create session and dispatch
 
 **On `/autopilot status`:**
 1. Read `status.md` — follow the status check flow
@@ -69,11 +68,9 @@ All Managed Agents API calls use `curl` via Bash with these headers:
 curl -sS https://api.anthropic.com/v1/{endpoint} \
   -H "x-api-key: $ANTHROPIC_API_KEY" \
   -H "anthropic-version: 2023-06-01" \
-  -H "anthropic-beta: managed-agents-2026-04-01-research-preview" \
+  -H "anthropic-beta: managed-agents-2026-04-01" \
   -H "content-type: application/json"
 ```
-
-The `research-preview` beta suffix is required for outcome/rubric features. It's a superset of the base `managed-agents-2026-04-01` header.
 
 For skills upload, use the skills beta header:
 ```bash

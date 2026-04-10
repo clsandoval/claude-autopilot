@@ -10,7 +10,7 @@ Read `.superpowers/autopilot-sessions.json`, check session count. If one: use it
 SESSION_RESPONSE=$(curl -sS "https://api.anthropic.com/v1/sessions/$SESSION_ID" \
   -H "x-api-key: $ANTHROPIC_API_KEY" \
   -H "anthropic-version: 2023-06-01" \
-  -H "anthropic-beta: managed-agents-2026-04-01-research-preview")
+  -H "anthropic-beta: managed-agents-2026-04-01")
 STATUS=$(echo "$SESSION_RESPONSE" | jq -r '.status')
 ```
 
@@ -19,36 +19,8 @@ STATUS=$(echo "$SESSION_RESPONSE" | jq -r '.status')
 EVENTS=$(curl -sS "https://api.anthropic.com/v1/sessions/$SESSION_ID/events" \
   -H "x-api-key: $ANTHROPIC_API_KEY" \
   -H "anthropic-version: 2023-06-01" \
-  -H "anthropic-beta: managed-agents-2026-04-01-research-preview")
+  -H "anthropic-beta: managed-agents-2026-04-01")
 ```
-
-### Step 2.5: Check Outcome Evaluations
-
-For outcome-oriented sessions, check grading progress:
-
-```bash
-# Get all outcome evaluation events
-OUTCOME_EVALS=$(echo "$EVENTS" | jq '[.data[] | select(.type | startswith("span.outcome_evaluation"))]')
-
-# Latest evaluation end (if any)
-LATEST_EVAL=$(echo "$OUTCOME_EVALS" | jq '[.[] | select(.type == "span.outcome_evaluation_end")] | last')
-EVAL_RESULT=$(echo "$LATEST_EVAL" | jq -r '.result // empty')
-EVAL_EXPLANATION=$(echo "$LATEST_EVAL" | jq -r '.explanation // empty')
-EVAL_ITERATION=$(echo "$LATEST_EVAL" | jq -r '.iteration // empty')
-
-# Check if grading is currently in progress
-GRADING_IN_PROGRESS=$(echo "$OUTCOME_EVALS" | jq '
-  ([.[] | select(.type == "span.outcome_evaluation_start")] | length) >
-  ([.[] | select(.type == "span.outcome_evaluation_end")] | length)
-')
-```
-
-Outcome evaluation results:
-- `satisfied` — Rubric met, session is idle. Work is done.
-- `needs_revision` — Grader found gaps, agent is iterating. Show the explanation.
-- `max_iterations_reached` — Agent exhausted its iteration budget. May run one final revision.
-- `failed` — Rubric fundamentally doesn't match the task (description/rubric contradiction).
-- `interrupted` — User sent a `user.interrupt` event.
 
 ### Step 3: Determine Actual State (CRITICAL)
 
@@ -122,66 +94,12 @@ ARTIFACTS=$(echo "$EVENTS" | jq -r '[.data[] | select(.type == "agent.message") 
 **Phase:** <phase>
 **Status:** Running
 **Running since:** <relative time>
-**Grading:** <iteration N of max_iterations> | <grading_in_progress ? "Grader evaluating..." : "Agent working">
 
 ### Recent Activity
 <last agent message snippet>
 ```
 
-### If grading just completed with needs_revision:
-```
-## Autopilot: <brief-slug>
-
-**Phase:** <phase>
-**Status:** Running — iteration <N+1> of <max_iterations>
-**Last grading:** needs_revision
-
-### Grader Feedback
-<eval_explanation — the specific gaps the grader found>
-
-### Recent Activity
-<last agent message snippet>
-```
-
-### If idle — outcome satisfied (done):
-```
-## Autopilot: <brief-slug>
-
-**Phase:** <phase>
-**Status:** Complete — rubric satisfied
-**Branch:** <branch>
-**Iterations:** <N> of <max_iterations>
-
-### Grader Summary
-<eval_explanation — confirmation of criteria met>
-
-### Decisions Made
-<decisions>
-
-### Artifacts
-<artifacts>
-```
-
-### If idle — max_iterations_reached:
-```
-## Autopilot: <brief-slug>
-
-**Phase:** <phase>
-**Status:** Complete — max iterations reached
-**Branch:** <branch>
-**Iterations:** <max_iterations> of <max_iterations>
-
-### Final Grader Feedback
-<eval_explanation — what gaps remain>
-
-### Decisions Made
-<decisions>
-
-### Artifacts
-<artifacts>
-```
-
-### If idle — end_turn (done, legacy non-outcome session):
+### If idle — end_turn (done):
 ```
 ## Autopilot: <brief-slug>
 
@@ -211,16 +129,6 @@ ARTIFACTS=$(echo "$EVENTS" | jq -r '[.data[] | select(.type == "agent.message") 
 <if custom tool: show question and options>
 ```
 
-### If idle — outcome failed:
-```
-## Autopilot: <brief-slug>
-
-**Status:** Failed — rubric does not match the task
-**Grader explanation:** <eval_explanation>
-
-The rubric and description may contradict each other. Consider revising and dispatching a new session.
-```
-
 ## Responding to Blocked Actions
 
 ### For custom tool calls (ask_user):
@@ -228,7 +136,7 @@ The rubric and description may contradict each other. Consider revising and disp
 curl -sS "https://api.anthropic.com/v1/sessions/$SESSION_ID/events" \
   -H "x-api-key: $ANTHROPIC_API_KEY" \
   -H "anthropic-version: 2023-06-01" \
-  -H "anthropic-beta: managed-agents-2026-04-01-research-preview" \
+  -H "anthropic-beta: managed-agents-2026-04-01" \
   -H "content-type: application/json" \
   -d "$(jq -n --arg id "$EVENT_ID" --arg answer "$USER_ANSWER" '{
     events: [{
@@ -244,7 +152,7 @@ curl -sS "https://api.anthropic.com/v1/sessions/$SESSION_ID/events" \
 curl -sS "https://api.anthropic.com/v1/sessions/$SESSION_ID/events" \
   -H "x-api-key: $ANTHROPIC_API_KEY" \
   -H "anthropic-version: 2023-06-01" \
-  -H "anthropic-beta: managed-agents-2026-04-01-research-preview" \
+  -H "anthropic-beta: managed-agents-2026-04-01" \
   -H "content-type: application/json" \
   -d "$(jq -n --arg id "$EVENT_ID" --argjson approved true '{
     events: [{
@@ -275,5 +183,5 @@ If branch exists: note committed work. If not: note no work saved.
 ```
 -H "x-api-key: $ANTHROPIC_API_KEY"
 -H "anthropic-version: 2023-06-01"
--H "anthropic-beta: managed-agents-2026-04-01-research-preview"
+-H "anthropic-beta: managed-agents-2026-04-01"
 ```
