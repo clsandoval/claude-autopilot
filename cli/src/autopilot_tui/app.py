@@ -104,16 +104,16 @@ class AutopilotApp(App[None]):
     @work(exclusive=True, group="load")
     async def _do_load_sessions(self) -> None:
         try:
-            self._sessions = await self._api.list_sessions()
-            for s in self._sessions:
+            sessions = await self._api.list_sessions()
+            # Preserve existing _display_status from events cache
+            for s in sessions:
                 sid = s.get("id", "")
                 if sid in self._events:
                     s["_display_status"] = session_status(s, self._events[sid])
                 else:
                     s["_display_status"] = _raw_status(s)
-            self.query_one("#session-list-widget", SessionListWidget).update_sessions(
-                self._sessions
-            )
+            self._sessions = sessions
+            self._update_session_list()
         except Exception as e:
             self.log.error(f"load_sessions: {e}")
 
@@ -122,7 +122,13 @@ class AutopilotApp(App[None]):
         try:
             events = await self._api.get_events(session_id)
             self._events[session_id] = events
-            self._refresh_detail(session_id)
+            # Update the status on the session dict
+            session = self._find_session(session_id)
+            if session:
+                session["_display_status"] = session_status(session, events)
+                self._update_session_list()
+            # Update detail panels
+            self._update_detail_panels(session_id)
         except Exception as e:
             self.log.error(f"load_events: {e}")
 
@@ -134,13 +140,15 @@ class AutopilotApp(App[None]):
         if not session:
             return
         status = session.get("_display_status", "done")
-        if status in ("running", "blocked"):
-            try:
-                events = await self._api.get_events(self._selected_id)
-                self._events[self._selected_id] = events
-                self._refresh_detail(self._selected_id)
-            except Exception as e:
-                self.log.error(f"poll: {e}")
+        if status not in ("running", "blocked"):
+            return
+        try:
+            events = await self._api.get_events(self._selected_id)
+            self._events[self._selected_id] = events
+            session["_display_status"] = session_status(session, events)
+            self._update_detail_panels(self._selected_id)
+        except Exception as e:
+            self.log.error(f"poll: {e}")
 
     def _find_session(self, sid: str) -> dict | None:
         for s in self._sessions:
@@ -148,46 +156,55 @@ class AutopilotApp(App[None]):
                 return s
         return None
 
-    # ── UI refresh ──────────────────────────────────────────────────────────
+    # ── UI updates (always called from worker context) ──────────────────────
 
-    def _refresh_detail(self, session_id: str) -> None:
-        if session_id != self._selected_id:
-            return
-        session = self._find_session(session_id) or {}
-        events = self._events.get(session_id, [])
-
-        status = session_status(session, events)
-        session["_display_status"] = status
-        phases = extract_phases(events)
-        session["_current_phase"] = phases[-1]["name"] if phases else ""
-
+    def _update_session_list(self) -> None:
+        """Push current sessions to the list widget."""
         try:
             self.query_one("#session-list-widget", SessionListWidget).update_sessions(
                 self._sessions
             )
         except NoMatches:
             pass
+
+    def _update_detail_panels(self, session_id: str) -> None:
+        """Update all right-side panels for the given session."""
+        if session_id != self._selected_id:
+            return
+        session = self._find_session(session_id) or {}
+        events = self._events.get(session_id, [])
+
+        # Event stream
         try:
             self.query_one("#events-widget", EventStreamWidget).update_events(events)
         except NoMatches:
             pass
+
+        # Progress tab
         try:
-            self.query_one("#progress-widget", ProgressWidget).update(session, events)
+            self.query_one("#progress-widget", ProgressWidget).update_data(
+                session, events
+            )
         except NoMatches:
             pass
+
+        # Artifacts tab
         try:
-            self.query_one("#artifacts-widget", ArtifactsWidget).update(
+            self.query_one("#artifacts-widget", ArtifactsWidget).update_data(
                 extract_artifacts(events)
             )
         except NoMatches:
             pass
 
+        # Question tab
         question = extract_question(events)
         try:
             self.query_one("#question-widget", QuestionWidget).load_question(question)
         except NoMatches:
             pass
-        if question and status == "blocked":
+
+        # Auto-switch to question tab if blocked
+        if question and session.get("_display_status") == "blocked":
             try:
                 self.query_one("#tabs", TabbedContent).active = "tab-question"
             except NoMatches:
@@ -213,7 +230,7 @@ class AutopilotApp(App[None]):
             self.notify("Answer sent", severity="information")
             events = await self._api.get_events(self._selected_id)
             self._events[self._selected_id] = events
-            self._refresh_detail(self._selected_id)
+            self._update_detail_panels(self._selected_id)
         except Exception as e:
             self.notify(f"Failed: {e}", severity="error")
 

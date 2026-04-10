@@ -26,7 +26,7 @@ class ArtifactsWidget(Widget):
     def compose(self) -> ComposeResult:
         yield self._content
 
-    def update(self, artifacts: list[Artifact]) -> None:
+    def update_data(self, artifacts: list[Artifact]) -> None:
         if not artifacts:
             self._content.update("[dim]No artifacts yet[/dim]")
             return

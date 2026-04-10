@@ -43,7 +43,7 @@ class ProgressWidget(Widget):
     def compose(self) -> ComposeResult:
         yield self._content
 
-    def update(self, session: dict, events: list[dict]) -> None:
+    def update_data(self, session: dict, events: list[dict]) -> None:
         phases = extract_phases(events)
         decisions = extract_decisions(events)
 
