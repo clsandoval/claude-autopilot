@@ -23,8 +23,13 @@ THEME_CSS = """
     border-right: solid $panel;
 }
 
+#tabs {
+    height: 1fr;
+}
+
 #right-bottom {
     height: 18;
+    max-height: 18;
     border-top: solid $panel;
 }
 
