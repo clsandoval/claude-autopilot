@@ -37,7 +37,10 @@ class EventStreamWidget(Widget):
         log: RichLog = self.query_one("#events-rich-log", RichLog)
         log.clear()
         for event in events:
-            css_class, text = format_event_line(event)
+            result = format_event_line(event)
+            if result is None:
+                continue
+            css_class, text = result
             style = _CLASS_TO_STYLE.get(css_class, "")
             if style:
                 log.write(f"[{style}]{text}[/{style}]")

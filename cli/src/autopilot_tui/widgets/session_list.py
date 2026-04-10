@@ -41,7 +41,10 @@ class SessionListWidget(Widget):
     DEFAULT_CSS = """
     SessionListWidget {
         width: 100%;
-        height: 100%;
+        height: 1fr;
+    }
+    #session-listview {
+        height: 1fr;
     }
     """
 

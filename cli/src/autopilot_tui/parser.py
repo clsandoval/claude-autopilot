@@ -191,31 +191,36 @@ def session_status(session: dict, events: list[dict]) -> str:
     return raw or "done"
 
 
-def format_event_line(event: dict) -> tuple[str, str]:
-    """Return (css_class, display_text) for an event."""
+def format_event_line(event: dict) -> tuple[str, str] | None:
+    """Return (css_class, display_text) for an event, or None to skip."""
     etype = event.get("type", "")
-    ts = _ts(event)
+    ts = event.get("processed_at") or _ts(event)
     time_str = ""
     if ts:
         try:
             dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
             time_str = dt.astimezone(tz=None).strftime("%H:%M")
         except Exception:
-            time_str = ts[:5]
+            pass
 
     prefix = f"[{time_str}] " if time_str else ""
 
     if etype == "agent.message":
         text = _event_text(event)
-        first_line = text.split("\n")[0][:120]
+        if not text.strip():
+            return None
+        first_line = text.strip().split("\n")[0][:120]
         if _PHASE_RE.search(first_line):
             return ("event-phase", f"{prefix}▶ {first_line}")
         return ("event-line", f"{prefix}{first_line[:100]}")
 
-    if etype == "agent.custom_tool_use" and event.get("name") == "ask_user":
-        inp = event.get("input", {})
-        q = inp.get("question", "")[:80]
-        return ("event-question", f"{prefix}❓ ask_user: {q}")
+    if etype == "agent.custom_tool_use":
+        name = event.get("name", "")
+        if name == "ask_user":
+            inp = event.get("input", {})
+            q = inp.get("question", "")[:80]
+            return ("event-question", f"{prefix}❓ {q}")
+        return ("event-line", f"{prefix}⚙ custom: {name}")
 
     if etype == "user.custom_tool_result":
         content = event.get("content", [])
@@ -231,15 +236,27 @@ def format_event_line(event: dict) -> tuple[str, str]:
         detail = ""
         if name == "bash":
             detail = (inp.get("command") or "")[:60]
-        elif name in ("read", "write"):
-            detail = inp.get("file_path") or inp.get("path", "")
+        elif name in ("read", "write", "edit", "glob", "grep"):
+            detail = (inp.get("file_path") or inp.get("path") or inp.get("pattern") or "")[:60]
+        else:
+            detail = name
         return ("event-line", f"{prefix}⚙ {name}: {detail}")
 
-    if etype in ("session.status_running", "session.status_idle"):
-        short = etype.replace("session.status_", "")
-        return ("event-line", f"{prefix}◌ session {short}")
+    if etype == "session.status_running":
+        return ("event-line", f"{prefix}● session running")
 
-    return ("event-line", f"{prefix}{etype}")
+    if etype == "session.status_idle":
+        stop = event.get("stop_reason", {})
+        stop_type = stop.get("type", "")
+        if stop_type == "requires_action":
+            return ("event-question", f"{prefix}◆ session blocked — waiting for input")
+        return ("event-line", f"{prefix}○ session idle ({stop_type})")
+
+    if etype == "session.status_terminated":
+        return ("event-line", f"{prefix}✕ session terminated")
+
+    # Skip noise: span.*, agent.thinking, agent.tool_result, etc.
+    return None
 
 
 def time_ago(ts: str | None) -> str:
