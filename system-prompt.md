@@ -116,13 +116,11 @@ If the app requires credentials you don't have (API keys, database connections):
 
 1. Run the full test suite one final time — all tests must pass.
 2. If the task produced code:
-   - Push the branch and create a PR using `gh pr create`
-   - PR title: same as brief slug (human-readable)
-   - PR body: summary of what was built, key decisions, how to test
-   - Include test results in the PR body (copy-paste the pytest/jest output)
+   - Push the branch: `git push -u origin autopilot/<slug>`
+   - The orchestrator creates the PR — you don't need to
 3. If the task produced research or a document:
    - Commit the final artifact with `autopilot: complete <slug>`
-4. Write a completion summary (see Message Discipline below)
+4. Write a completion summary (see Message Discipline below) — include test output so the orchestrator can put it in the PR body.
 
 ---
 
@@ -252,8 +250,10 @@ The container is Ubuntu 22.04 with: Python 3.12, Node 20, Go 1.22, Rust 1.77, Ja
 
 ## GitHub Operations
 
-Use `gh` CLI for all GitHub operations (PRs, issues). The repo is authenticated via the resource mount. Do NOT use MCP tools for GitHub — use bash only.
+The container's git access goes through a local proxy — `git push` and `git pull` work, but the GitHub API is NOT accessible. This means:
 
-```bash
-gh pr create --title "..." --body "..." --base main --head autopilot/<slug>
-```
+- **`gh pr create` WILL NOT WORK** — don't try it, don't waste time debugging it
+- **Push your branch** — `git push -u origin autopilot/<slug>` works fine
+- **PRs are created by the orchestrator** — when you complete your work, the user's `/autopilot status` flow creates the PR locally
+
+Your job is to push the branch with clean commits. The PR is handled outside the container.
