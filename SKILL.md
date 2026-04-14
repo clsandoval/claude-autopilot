@@ -86,6 +86,19 @@ The `ANTHROPIC_API_KEY` environment variable must be set (source from `.env` if 
 
 Both files live in the project root's `.superpowers/` directory. These files should be in `.gitignore`.
 
+## Networking Limitations
+
+The managed agent container routes all outbound traffic through an HTTP proxy. This means:
+
+- **No direct TCP connections** — `psql`, `mysql`, `redis-cli`, raw socket connections, and similar tools will fail with DNS resolution or connection errors
+- **HTTP/HTTPS only** — `curl`, `wget`, and other HTTP clients work fine (they use the proxy)
+- **For database access**, use REST APIs instead of direct connections:
+  - Supabase: use the PostgREST API via `curl` with the service role key, not `psql`
+  - Other databases: use any HTTP-based query API available
+- **Do NOT include `psql` connection strings in briefs** — the agent will waste time trying to make them work
+
+When the brief requires database access, provide HTTP-based credentials (API URLs + auth tokens) instead of connection strings.
+
 ## Key Principles
 
 - **Agent created per-job** — Each dispatch creates a fresh agent with skills tailored to the task.
