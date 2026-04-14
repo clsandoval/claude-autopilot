@@ -127,16 +127,21 @@ AGENT_RESPONSE=$(curl -sS https://api.anthropic.com/v1/agents \
   -H "content-type: application/json" \
   -d "$(jq -n \
     --arg name "Autopilot: $SLUG" \
-    --arg model "claude-opus-4-6" \
     --arg system "$SYSTEM_PROMPT" \
     --argjson skills "$SKILLS_JSON" \
     '{
       name: $name,
-      model: $model,
+      model: {id: "claude-opus-4-6", speed: "standard"},
       system: $system,
       skills: $skills,
       tools: [
-        { type: "agent_toolset_20260401" },
+        {
+          type: "agent_toolset_20260401",
+          default_config: {
+            enabled: true,
+            permission_policy: {type: "always_allow"}
+          }
+        },
         {
           type: "custom",
           name: "ask_user",

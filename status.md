@@ -61,6 +61,8 @@ Blocked events can be:
 
 ### Step 4: Parse Agent Messages
 
+**Note:** The event stream includes `agent.thinking` events alongside `agent.message`. These contain the agent's internal reasoning and should be filtered out when displaying messages to the user, but can be useful for debugging.
+
 Current phase: scan agent messages for phase headers.
 ```bash
 LATEST_PHASE=$(echo "$EVENTS" | jq -r '

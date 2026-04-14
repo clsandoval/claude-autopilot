@@ -105,5 +105,7 @@ When the brief requires database access, provide HTTP-based credentials (API URL
 - **`ask_user` is the interactive bridge** — The agent calls it, the session goes idle with `stop_reason: requires_action`, and `/autopilot status` surfaces the question for the user to answer.
 - **Skills are the agent's expertise** — Upload relevant skills (custom or Anthropic pre-built) based on the task.
 - **Git is the persistence layer** — the agent commits to `autopilot/<slug>` branches as it works.
-- **PRs are created by the orchestrator** — The `gh` CLI does not work inside the container (git proxy blocks GitHub API access). The agent pushes branches via `git push`; PRs are created by the orchestrator locally via `/autopilot status`.
+- **PRs are created by the orchestrator** — The `gh` CLI does not work inside the container (git proxy blocks GitHub API access). The agent pushes branches via `git push`; PRs are created by the orchestrator locally via `/autopilot status`. Alternatively, if GitHub MCP is configured with a vault credential, the agent can create PRs directly via MCP tools (`create_branch`, `create_or_update_file`, `create_pull_request`).
 - **Always check `stop_reason`** — A session being `idle` doesn't mean it's done. Check `stop_reason.type`: `end_turn` = done, `requires_action` = blocked waiting for input.
+- **Agent updates require versioning** — Updating an agent via `POST /v1/agents/:id` requires a `version` field for optimistic concurrency. Get the current version from the agent object before updating.
+- **`agent.thinking` events exist** — The event stream includes `agent.thinking` events alongside `agent.message`. Status check code should be aware of these when parsing events.
