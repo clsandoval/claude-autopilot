@@ -33,6 +33,19 @@ The brief should be specific enough that the agent can execute without interpret
 - What the deliverable is (spec only? code? research?)
 - Constraints (stop after Phase N, no code, specific tech stack, etc.)
 
+### CRITICAL: Verify Every Claim in the Brief
+
+**Before sending any brief, double-check every concrete detail against the actual codebase.** The brief is the agent's only source of truth — if it contains wrong schemas, stale file paths, incorrect API signatures, or made-up field names, the agent wastes time discovering and working around your mistakes.
+
+Mandatory verification checklist:
+- **API schemas/payloads**: Read the actual Pydantic models or OpenAPI spec — do NOT write request bodies from memory
+- **File paths**: Glob/grep to confirm files exist at the paths you cite
+- **Function signatures**: Read the actual function, don't guess parameter names
+- **Environment details**: Confirm URLs, auth mechanisms, and credential formats against current code
+- **Field names**: Read the model definition — `label` vs `anchor_text` matters
+
+If you skip verification, the agent will figure it out eventually by reading the codebase, but you've wasted its time and compute on a self-inflicted detour.
+
 ### Mode 2 (Fast Dispatch):
 1. **Get the brief** — Can be vague ("add a useful automation to the monorepo")
 2. **Confirm repo and branch** — Default to this repo, main branch
