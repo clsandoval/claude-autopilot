@@ -1,15 +1,21 @@
 ---
 name: autopilot
-description: Use when the user wants to dispatch autonomous background work that runs without their laptop open — kicks off a Claude Managed Agent that brainstorms, specs, plans, and implements from a brief, with async Q&A via polling
+description: |
+  Dispatch autonomous work to Claude Managed Agents, or generate podcasts/investigations locally.
+  Triggers: "autopilot", "dispatch", "autopilot status", "autopilot list", "autopilot podcast", "autopilot investigate"
+  Local skills /podcast and /investigate are registered separately via skills/ directory.
 ---
 
 # Autopilot — Managed Agent Command Center
 
-Dispatch autonomous work to Claude Managed Agents. The user provides a brief (with optional local brainstorming), the agent runs on Anthropic's infrastructure, and the user checks in asynchronously via `/autopilot status`.
+Dispatch autonomous work to Claude Managed Agents, generate podcasts, and run investigations. One plugin, two execution modes:
 
-**Announce at start:** "I'm using the autopilot skill to [dispatch new work / check status / list sessions]."
+- **Remote** (`/autopilot`) — work runs on Anthropic's infrastructure
+- **Local** (`/podcast`, `/investigate`) — work runs in your Claude Code session
 
-## Two Modes of Operation
+**Announce at start:** "I'm using the autopilot skill to [dispatch new work / generate a podcast / check status / list sessions]."
+
+## Two Modes of Operation (for `/autopilot` dispatch)
 
 ### Mode 1: Brainstorm Locally, Then Dispatch
 The user wants to think through the approach first. Run the full brainstorming flow locally (approach selection, architecture decisions, constraints), then dispatch a fully-formed brief. The agent executes without deliberation.
@@ -25,15 +31,19 @@ The user wants to fire and forget. Send a brief (can be vague), and the agent wi
 
 ## Subcommands
 
-| Invocation | Action |
-|---|---|
-| `/autopilot` | New job — intake, configure, dispatch |
-| `/autopilot status` | Check progress, answer pending questions |
-| `/autopilot list` | Show all tracked sessions |
+| Invocation | Where | Action |
+|---|---|---|
+| `/autopilot` | Remote | New job — intake, configure, dispatch |
+| `/autopilot podcast <brief>` | Remote | Dispatch managed agent to research + write dialogue + generate audio + deliver via Telegram |
+| `/autopilot investigate <brief>` | Remote | Dispatch managed agent to execute a spec + collect results + podcast findings + deliver via Telegram |
+| `/autopilot status` | Local (polls remote) | Check progress, answer pending questions |
+| `/autopilot list` | Local (polls remote) | Show all tracked sessions |
+| `/podcast <file>` | Local | Narrate a doc into podcast audio (registered via skills/podcast/) |
+| `/investigate <file>` | Local | Execute a spec, collect results, podcast findings (registered via skills/investigate/) |
 
 ## Routing
 
-**On `/autopilot` (no args or with a brief):**
+**On `/autopilot` (no args or with a generic brief):**
 1. Read `setup.md` — ensure one-time environment setup is complete (environment_id in config)
 2. Read `intake.md` — run the intake flow:
    - Determine mode (local brainstorm vs fast dispatch)
@@ -42,6 +52,28 @@ The user wants to fire and forget. Send a brief (can be vague), and the agent wi
    - Configure agent: repo, branch, skills, include `ask_user` custom tool
    - Create agent per-job with selected skills
    - Create session and dispatch
+
+**On `/autopilot podcast <brief>`:**
+1. Read `setup.md` — ensure environment setup is complete
+2. Read `intake.md` — run the **podcast dispatch** flow:
+   - Upload `remote-skills/podcast.md` as a custom skill
+   - Upload `scripts/generate.sh` as a file (mounted at `/workspace/generate.sh`)
+   - Upload `.env` as a file (mounted at `/workspace/.env`) for ElevenLabs + Telegram keys
+   - Create agent with: podcast skill + brainstorming skill + agent_toolset
+   - Construct brief from user's input (the brief IS the source material for the podcast)
+   - Create session and dispatch
+   - The agent writes dialogue, generates audio via ElevenLabs, delivers to Telegram
+
+**On `/autopilot investigate <brief>`:**
+1. Read `setup.md` — ensure environment setup is complete
+2. Read `intake.md` — run the **investigate dispatch** flow:
+   - Upload `remote-skills/investigate.md` as a custom skill
+   - Upload `scripts/generate.sh` as a file (mounted at `/workspace/generate.sh`)
+   - Upload `.env` as a file (mounted at `/workspace/.env`)
+   - Optionally mount a GitHub repo if the investigation needs codebase access
+   - Create agent with: investigate skill + brainstorming skill + agent_toolset
+   - Create session and dispatch
+   - The agent executes steps, collects results, writes dialogue, generates audio, delivers to Telegram
 
 **On `/autopilot status`:**
 1. Read `status.md` — follow the status check flow
@@ -59,6 +91,9 @@ The user wants to fire and forget. Send a brief (can be vague), and the agent wi
 | 2 | Research: PH LLM infra options | clsandoval/m… | ⚠️ blocked  | 45m ago    |
 | 3 | Inbox ingestion loop           | clsandoval/m… | complete    | 3h ago     |
 ```
+
+**On `/podcast <file>` or `/investigate <file>`:**
+These are handled by their respective SKILL.md files in `skills/podcast/` and `skills/investigate/`. They run locally in your Claude Code session. No managed agents involved.
 
 ## API Conventions
 

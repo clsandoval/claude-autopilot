@@ -1,0 +1,13 @@
+{
+  "name": "autopilot",
+  "version": "2.0.0",
+  "description": "Dispatch autonomous work to Claude Managed Agents, generate podcasts locally, and run investigations. One plugin: /autopilot (remote), /podcast (local), /investigate (local).",
+  "author": {
+    "name": "clsandoval",
+    "url": "https://github.com/clsandoval"
+  },
+  "repository": "https://github.com/clsandoval/autopilot",
+  "license": "MIT",
+  "keywords": ["autopilot", "managed-agents", "podcast", "investigate", "tts", "elevenlabs"],
+  "skills": "./skills/"
+}

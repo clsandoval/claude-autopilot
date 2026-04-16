@@ -59,15 +59,18 @@ problem with that" energy.
      {"speaker": "b", "text": "Wait, you actually read a spec? Voluntarily?"}
    ]
    ```
-4. Save the transcript to `docs/superpowers/podcasts/<name>-transcript.md`
+4. Determine the output directory:
+   - Use `podcasts/` in the current working directory by default
+   - Create the directory if it doesn't exist
+5. Save the transcript to `podcasts/<name>-transcript.md`
    - The `<name>` is derived from the input filename (strip extension)
    - Format the transcript as readable markdown with **A:** and **B:** prefixes
-5. Write the JSON array to a temp file
-6. Run the audio generation script:
+6. Write the JSON array to a temp file
+7. Run the audio generation script:
    ```bash
-   bash .claude/skills/podcast/scripts/generate.sh <temp-json> docs/superpowers/podcasts/<name>.mp3
+   bash "${CLAUDE_PLUGIN_ROOT}/scripts/generate.sh" <temp-json> podcasts/<name>.mp3
    ```
-7. Report to the user:
+8. Report to the user:
    - Audio file path and duration
    - Transcript file path
    - A one-liner: what the hosts thought of the artifact
@@ -113,7 +116,7 @@ the words: if A has 2x the total words as B, the dialogue is too lopsided. Rewri
 
 ## Output
 
-All files go to `docs/superpowers/podcasts/` (created if it doesn't exist):
+All files go to `podcasts/` in the current working directory:
 - `<name>.mp3` — the podcast audio
 - `<name>-transcript.md` — readable dialogue with speaker labels
 

@@ -120,7 +120,7 @@ the report with whatever has completed so far.
 
 ### Investigation Directory
 
-Create this structure at `docs/superpowers/podcasts/<name>-investigation/`:
+Create this structure at `podcasts/<name>-investigation/`:
 
 ```
 <name>-investigation/
@@ -201,7 +201,7 @@ Also generate `cost-summary.json`:
 ## Prior Investigation Awareness
 
 Before generating narration, check for prior investigation reports and podcasts for the same spec:
-- Look in `docs/superpowers/podcasts/` for existing `*-investigation/report.md` files matching this spec
+- Look in `podcasts/` for existing `*-investigation/report.md` files matching this spec
 - Look for existing transcripts and audio files
 
 If prior investigations exist:
@@ -289,12 +289,12 @@ Reuse the existing podcast audio pipeline:
      {"speaker": "b", "text": "Wait you ran it? Like, for real? What happened?"}
    ]
    ```
-2. Save the transcript to `docs/superpowers/podcasts/<name>-transcript.md`
+2. Save the transcript to `podcasts/<name>-transcript.md`
    - Format as readable markdown with **A:** and **B:** prefixes
 3. Write the JSON array to a temp file
 4. Run the audio generation script:
    ```bash
-   bash .claude/skills/podcast/scripts/generate.sh <temp-json> docs/superpowers/podcasts/<name>.mp3
+   bash "${CLAUDE_PLUGIN_ROOT}/scripts/generate.sh" <temp-json> podcasts/<name>.mp3
    ```
 5. If `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` are available, upload the MP3:
    ```bash
@@ -315,7 +315,7 @@ Reuse the existing podcast audio pipeline:
 
 ## Output
 
-All files go to `docs/superpowers/podcasts/` (created if it doesn't exist):
+All files go to `podcasts/` (created if it doesn't exist):
 
 - `<name>.mp3` — the podcast audio
 - `<name>-transcript.md` — readable dialogue with speaker labels

@@ -293,6 +293,67 @@ Session dispatched.
 The agent is executing on Anthropic's infrastructure. Use /autopilot status to check progress.
 ```
 
+## Podcast & Investigate Dispatch
+
+These are specialized dispatch flows for `/autopilot podcast <brief>` and `/autopilot investigate <brief>`.
+
+### `/autopilot podcast` Flow
+
+1. **Upload the remote podcast skill** from `$SKILL_DIR/remote-skills/podcast.md`:
+   ```bash
+   PODCAST_SKILL_RESPONSE=$(curl -sS -X POST "https://api.anthropic.com/v1/skills" \
+     -H "x-api-key: $ANTHROPIC_API_KEY" \
+     -H "anthropic-version: 2023-06-01" \
+     -H "anthropic-beta: skills-2025-10-02" \
+     -F "display_title=Remote Podcast $(date +%s)" \
+     -F "files[]=@$SKILL_DIR/remote-skills/podcast.md;filename=podcast/SKILL.md")
+   PODCAST_SKILL_ID=$(echo "$PODCAST_SKILL_RESPONSE" | jq -r '.id')
+   ```
+
+2. **Upload generate.sh** as a file:
+   ```bash
+   SCRIPT_UPLOAD=$(curl -sS -X POST "https://api.anthropic.com/v1/files" \
+     -H "x-api-key: $ANTHROPIC_API_KEY" \
+     -H "anthropic-version: 2023-06-01" \
+     -H "anthropic-beta: files-api-2025-04-14" \
+     -F "file=@$SKILL_DIR/scripts/generate.sh;filename=generate.sh" \
+     -F "purpose=agent")
+   SCRIPT_FILE_ID=$(echo "$SCRIPT_UPLOAD" | jq -r '.id')
+   ```
+
+3. **Upload .env** with ElevenLabs + Telegram keys (find .env in project dir or source from env vars)
+
+4. **Create agent** with podcast skill + brainstorming skill + agent_toolset
+
+5. **Create session** with resources: generate.sh mounted at `/workspace/generate.sh`, .env at `/workspace/.env`, and optionally a GitHub repo if the brief needs codebase access
+
+6. **Construct and send the brief** — the user's input IS the source material for the podcast. The brief should instruct the agent to follow the remote podcast skill.
+
+7. Save session and confirm to user (same as generic dispatch Step 3-4)
+
+### `/autopilot investigate` Flow
+
+Same as podcast flow, but:
+1. Upload `$SKILL_DIR/remote-skills/investigate.md` instead of podcast.md
+2. A GitHub repo mount is more likely needed (the investigation may need to read/run code)
+3. The brief should include the spec or reference the spec file in the mounted repo
+
+### Shared: File Resources for Podcast/Investigate
+
+Both flows need generate.sh and .env mounted. Add these to the resources array:
+
+```bash
+# Add to resources array alongside any GitHub repo
+RESOURCES=$(jq -n \
+  --arg script_file_id "$SCRIPT_FILE_ID" \
+  --arg env_file_id "$ENV_FILE_ID" \
+  --argjson base_resources "$BASE_RESOURCES" \
+  '$base_resources + [
+    {"type": "file", "file_id": $script_file_id, "mount_path": "/workspace/generate.sh"},
+    {"type": "file", "file_id": $env_file_id, "mount_path": "/workspace/.env"}
+  ]')
+```
+
 ## Slugifying the Brief
 ```bash
 SLUG=$(echo "$BRIEF" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' | sed 's/--*/-/g' | sed 's/^-//' | sed 's/-$//' | cut -c1-50)
