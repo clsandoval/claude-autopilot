@@ -43,6 +43,52 @@ COMBAT_MARKERS = [
 ]
 
 CJK_RE = re.compile(r"[\u3040-\u30ff\u4e00-\u9fff]")
+JP_SPAN_RE = re.compile(r"[\u3040-\u30ff\u4e00-\u9fff][\u3040-\u30ff\u4e00-\u9fff\u3001\u3002\uff01\uff1f\s]*")
+
+
+def check_jp_en_pairing(dialogue: list[dict]) -> tuple[int, int, list[str]]:
+    """For every Japanese span, require an explicit structural gloss signal.
+
+    Paired if one of these patterns surrounds the JP span:
+      - AFTER: quote/comma then em-dash then English word    `"JP" — compare`
+      - AFTER: parenthetical English                         `"JP" (compare)`
+      - AFTER: marker word                                   `"JP" means compare` / `that is` / `i.e.` / `in other words`
+      - BEFORE: English word then em-dash then JP            `compare — "JP"`
+      - BEFORE: English word then colon/comma then JP        `compare, "JP"` / `compare: "JP"`
+
+    Bare substitution (`"JP" のが today's job`) is NOT paired — that's the
+    failure mode this check exists to prevent.
+
+    Returns (total_spans, unpaired_count, sample_unpaired_contexts).
+    """
+    total = 0
+    unpaired = []
+    after_signal = re.compile(
+        r"""^
+            (
+              ["'」』\s,.!?]*[—\-–]\s*[A-Za-z]            # em-dash then English
+              | ["'」』]?\s*\(\s*[A-Za-z]                   # parenthetical English
+              | ["'」』\s,]*\b(means|that\ is|i\.e\.|in\ other\ words)\b
+            )""", re.I | re.X,
+    )
+    # e.g. `compare — "JP"` or `compare, "JP"` or `compare: "JP"`
+    before_signal = re.compile(
+        r"""[A-Za-z]{3,}\s*[—\-–,:;]\s*["'「『]?\s*$""", re.X,
+    )
+    for turn in dialogue:
+        t = turn.get("text", "")
+        for m in JP_SPAN_RE.finditer(t):
+            jp = m.group(0).strip()
+            if not jp or not CJK_RE.search(jp):
+                continue
+            total += 1
+            pre = t[max(0, m.start() - 40): m.start()]
+            post = t[m.end(): m.end() + 40]
+            paired = bool(after_signal.search(post)) or bool(before_signal.search(pre))
+            if not paired:
+                ctx = (pre[-25:] + "«" + jp + "»" + post[:25]).replace("\n", " ")
+                unpaired.append(ctx)
+    return total, len(unpaired), unpaired[:10]
 
 
 def load_schedule_episode(schedule_path: str, episode: int) -> dict:
@@ -63,6 +109,8 @@ def main() -> None:
                     help="Comma-separated review items from the brief")
     ap.add_argument("--min-review-present", type=int, default=10,
                     help="Minimum distinct review items that must appear (default 10)")
+    ap.add_argument("--max-unpaired-pct", type=float, default=0.20,
+                    help="Max fraction of JP spans without English gloss (default 0.20)")
     args = ap.parse_args()
 
     d = json.load(open(args.dialogue))
@@ -137,6 +185,20 @@ def main() -> None:
                 f"CJK COVERAGE: {turn_pct:.0%} of turns have Japanese (need {min_turn_pct:.0%}) "
                 "— sprinkle Japanese across more turns, not just a few"
             )
+
+        # Pairing check: every JP span must have an English gloss nearby
+        total_spans, unpaired_count, samples = check_jp_en_pairing(d)
+        unpaired_pct = unpaired_count / max(total_spans, 1)
+        print(f"JP-EN pairing: {total_spans - unpaired_count}/{total_spans} spans paired "
+              f"({(1-unpaired_pct):.0%})  max_unpaired={args.max_unpaired_pct:.0%}")
+        if unpaired_pct > args.max_unpaired_pct:
+            msg = (
+                f"JP-EN PAIRING: {unpaired_count}/{total_spans} spans ({unpaired_pct:.0%}) "
+                f"have no English gloss within ±50 chars (max {args.max_unpaired_pct:.0%}). "
+                f"Add em-dash paraphrases (`\"JP\" — english —`) or parentheticals "
+                f"(`\"JP\" (english)`). Examples:\n    " + "\n    ".join(samples)
+            )
+            fails.append(msg)
 
         # Vocab: each item must appear ≥3× — kanji OR reading both count
         for word, reading in vocab_items:

@@ -55,6 +55,38 @@ NOT:
 
 Without quotes, the TTS sometimes skips or garbles Japanese boundaries. Quotes count toward raw char total but the CJK regex counts only kana/kanji, so the gate is unaffected.
 
+### CRITICAL: Pair every Japanese word with an explicit English gloss
+
+The single most common failure mode is **JP-for-EN substitution** — the agent replaces an English word with a Japanese word inline, and the listener never hears the meaning. This is NOT Pimsleur. It only teaches people who already know the word.
+
+**Rule:** every Japanese span, on every occurrence in a turn, must have an English paraphrase of THAT SPECIFIC WORD within the same sentence or the one immediately after. Acceptable patterns:
+
+- **Em-dash gloss**: `"くらべる" — compare — is today's job.`
+- **Parenthetical**: `We're going to "くらべる" (compare) the two repos.`
+- **Paraphrase before**: `We're comparing them — "くらべる."`
+- **Paraphrase after, same sentence**: `"くらべる," comparing them, is today's job.`
+- **Echoed paraphrase by the other speaker**: `A: "くらべる" のが today's job. B: Right, compare them side by side.`
+
+**Forbidden patterns (all of these appeared in ep 7 and must not repeat):**
+
+- ❌ `"くらべる" のが today's job.` — JP word substituted for English verb, no gloss
+- ❌ `"でも" at first glance you'd think...` — JP conjunction with no translation
+- ❌ `"ちがう" paradigms.` — JP adjective inline, no gloss
+- ❌ `"ひとつの" VM で "すべて" やる. One VM does everything.` — two JP words, then one English sentence — listener can't tell which JP word maps to which English word
+- ❌ `"つくる" env, "つくる" agent, "つくる" session` — JP verb used 3× before any gloss ever appears
+
+**When in doubt, glue the gloss with an em-dash.** It reads naturally in engineering banter: `"そろそろ" — soon — we'll need to ship this.` Native-sounding code-switching is NOT the goal — pedagogical clarity is.
+
+**Exception: function words after they've been established.** Once `"でも"` has been glossed as "but" in the first 2-3 appearances, later occurrences can stand alone. The verifier allows up to ~20% of spans to be unpaired to accommodate this. First appearance of any word must ALWAYS be glossed.
+
+The verify script enforces this mechanically — see "Pairing check" below.
+
+### Pairing check in verify-dialogue.py
+
+The verifier scans every Japanese span and looks for an English gloss within a 40-character window around it. If >20% of spans are unpaired, it FAILS. The ratio/CJK-floor gate is NOT a substitute for pairing — you can pass the ratio by spraying JP tokens inline and still fail pairing, which means the episode is useless pedagogically.
+
+If you fail the pairing check, the fix is NOT to add more Japanese — it's to add em-dash English glosses next to the Japanese you already have.
+
 ## New grammar: 1–2 patterns × 4 exposures
 
 Introduce inductively. Use the pattern 4+ times in varied contexts. No metalanguage. Patterns with leading `〜` (like `〜なくちゃ`) — the verification script strips the tilde automatically; just use `なくちゃ` in the dialogue.
