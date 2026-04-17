@@ -80,10 +80,10 @@ The user wants to fire and forget. Send a brief (can be vague), and the agent wi
 
    **Step 2b — Comprehension gating (ratio bump check)**
    - If the slot's `japanese_ratio` is HIGHER than the previous episode's ratio, this is a tier bump
-   - Check items introduced in episode N-2: read vocabulary.yaml and grammar.yaml, find items with `introduced_in: episode_(N-2)`, sum their `exposures`
-   - If average exposures < 4, downgrade this episode's ratio to match the previous episode (no bump yet) and write the override back to schedule.yaml with a `gated_at: <date>` note
-   - If average exposures >= 4, proceed at the scheduled ratio
-   - This prevents the ratio from racing ahead of actual comprehension
+   - Check items introduced in episode N-2: read vocabulary.yaml and grammar.yaml, find items with `introduced_in: episode_(N-2)`, average their `exposures`
+   - If average exposures < 8, downgrade this episode's ratio to match the previous episode (no bump yet) and write the override back to schedule.yaml with a `gated_at: <date>` note
+   - If average exposures >= 8, proceed at the scheduled ratio
+   - This prevents the ratio from racing ahead of actual comprehension. Threshold is strict (8) — items need to have been reviewed across many episodes before the next tier opens.
 
    **Step 3 — Build review list**
    - Read `vocabulary.yaml` and `grammar.yaml` for all items with status `new` or `learning`
