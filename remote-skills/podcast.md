@@ -18,12 +18,14 @@ Runs inside a Managed Agent container. Generate a podcast from source material p
 
 This is the single most common failure mode. Agents default to A-explains-B-reacts and produce a sycophantic lecture. Reject that framing.
 
-**Both A and B have expertise. They have DIFFERENT perspectives on the same topic.** The interesting thing is the collision of their takes, not one teaching the other.
+**Both A and B have expertise. Both default to skeptical pragmatism (see the posture section below). They differ in *what kind* of skepticism, not in whether they're skeptical.** The interesting thing is the collision of their takes, not one teaching the other.
 
-- **Person A** — has one angle (e.g. the builder, the insider, the optimist)
-- **Person B** — has a different angle (e.g. the skeptic, the outsider with adjacent expertise, the pragmatist)
+- **Person A** — one angle of skepticism (e.g. the implementer who's seen this pattern fail before; the insider who knows the gap between the README and the code)
+- **Person B** — a different angle of skepticism (e.g. the market-skeptic who doubts anyone wants this; the adjacent-expert who knows a cheaper path achieves 80% of the value)
 
-B is not a prompt-machine. B pushes back. B brings their own examples. B sometimes takes the conversation somewhere A didn't anticipate. B is sometimes RIGHT and A has to concede.
+Neither speaker is "the optimist." Neither is the hype-person. If either of them ever catches themselves sounding like a booster, the other calls it out.
+
+B is not a prompt-machine. B pushes back. B brings their own examples. B sometimes takes the conversation somewhere A didn't anticipate. B is sometimes right and A has to concede — and vice versa.
 
 If the brief describes the speakers as expert/novice, reinterpret it — make B an expert in something adjacent that illuminates the topic from a different direction.
 
@@ -93,28 +95,15 @@ Structural rules to fight this:
 6. **No compliments between speakers.** They can laugh, they can concede, they can be surprised — but they never tell each other they made a good point.
 7. **If the brief gives a strong POV, the speakers should still interrogate it.** Don't accept premises uncritically just because the brief asserts them.
 
-Operational check for sycophancy during verification:
+Sycophancy marker list (integrated into the pre-submit script in step 4; >1 hit = hard fail):
 
-```bash
-python3 <<'PY'
-import json, re
-d = json.load(open("/tmp/dialogue.json"))
-text = " ".join(t["text"] for t in d).lower()
-sycophancy_markers = [
-    "good point", "great point", "fair point", "that's a good",
-    "you're right about", "you nailed it", "exactly what i",
-    "brilliant", "really cool", "so cool", "super cool",
-    "love how you", "love that you", "this is such",
-    "really well put", "couldn't have said", "nailed",
-]
-hits = [m for m in sycophancy_markers if m in text]
-print(f"Sycophancy markers: {len(hits)} — {hits}")
-if len(hits) > 1:
-    print("FAIL: sycophancy guard triggered")
-PY
 ```
-
-More than 1 hit = rewrite.
+"good point", "great point", "fair point", "that's a good",
+"you're right about", "you nailed it", "exactly what i",
+"brilliant", "really cool", "so cool", "super cool",
+"love how you", "love that you", "this is such",
+"really well put", "couldn't have said", "nailed"
+```
 
 ## Required moments
 
@@ -161,7 +150,7 @@ If the episode entry is missing from schedule.yaml, stop and report — do NOT a
 
 ### The ratio is a hard constraint, not a suggestion
 
-The brief specifies `Japanese Ratio Target` between 0.20 and 0.60. This measures **Japanese character presence as a fraction of total spoken content**. It is NOT a vague vibe.
+The brief specifies `Japanese Ratio Target` between 0.20 and 1.00 (see `profile.yaml` for the ramp — later tiers go 0.30, 0.60, 0.80, 1.00). This measures **Japanese character presence as a fraction of total spoken content**. It is NOT a vague vibe.
 
 **Concrete operationalization:**
 
@@ -228,6 +217,9 @@ Both A and B code-switch naturally. Neither is "the teacher." A drops Japanese t
    NEW_VOCAB=''                  # comma-sep, from schedule.yaml episode_N.vocab  (e.g. '用事,予定,約束')
    NEW_GRAMMAR=''                # comma-sep, from schedule.yaml episode_N.grammar (e.g. 'なくちゃ')
    REVIEW_ITEMS=''               # comma-sep, from the brief's === REVIEW ITEMS === block
+   # NOTE on grammar patterns: curricula often store them with a leading tilde
+   # (e.g. '〜なくちゃ'). Strip the tilde before passing — '.count()' is a literal
+   # substring match and '〜なくちゃ' will not match 'なくちゃ' in natural text.
 
    RATIO="$RATIO" NEW_VOCAB="$NEW_VOCAB" NEW_GRAMMAR="$NEW_GRAMMAR" REVIEW_ITEMS="$REVIEW_ITEMS" python3 <<'PY'
    import json, re, sys, os
@@ -243,6 +235,15 @@ Both A and B code-switch naturally. Neither is "the teacher." A drops Japanese t
    banned = ["that's wild", "tell me more", "yeah exactly", "honestly", "genuinely",
              "literally", "100%", "okay so", "right? right?", "love that", "that's fascinating"]
    hits = [p for t in a + b for p in banned if p in t.lower()]
+   sycophancy_markers = [
+       "good point", "great point", "fair point", "that's a good",
+       "you're right about", "you nailed it", "exactly what i",
+       "brilliant", "really cool", "so cool", "super cool",
+       "love how you", "love that you", "this is such",
+       "really well put", "couldn't have said", "nailed",
+   ]
+   lower_text = all_text.lower()
+   syco_hits = [m for m in sycophancy_markers if m in lower_text]
 
    ratio = float(os.environ.get("RATIO", "0") or 0)
    new_vocab = [x.strip() for x in os.environ.get("NEW_VOCAB", "").split(",") if x.strip()]
@@ -261,12 +262,15 @@ Both A and B code-switch naturally. Neither is "the teacher." A drops Japanese t
    print(f"CJK chars: {cjk} (min required: {min_cjk} for ratio {ratio})")
    print(f"Turns with CJK: {turns_with_cjk}/{len(a)+len(b)} ({100*turn_pct:.1f}%, min {100*min_turn_cjk_pct:.0f}%)")
    print(f"Banned phrase hits: {len(hits)} — {set(hits)}")
+   print(f"Sycophancy markers: {len(syco_hits)} — {syco_hits}")
    print()
    fails = []
    if not (0.45 <= wa/total <= 0.55):
        fails.append(f"BALANCE: A is {100*wa/total:.1f}% (must be 45-55%)")
    if hits:
        fails.append(f"BANNED PHRASES: {set(hits)}")
+   if len(syco_hits) > 1:
+       fails.append(f"SYCOPHANCY: {len(syco_hits)} markers ({syco_hits}) — rewrite for pragmatic skepticism (see posture section)")
    if ratio > 0:
        if not new_vocab and not review_items:
            fails.append("PIMSLEUR GATE: RATIO>0 but NEW_VOCAB and REVIEW_ITEMS are both empty — did you forget to substitute the placeholders?")
@@ -301,7 +305,13 @@ Both A and B code-switch naturally. Neither is "the teacher." A drops Japanese t
    ```bash
    source /workspace/.env && bash /workspace/generate.sh /tmp/dialogue.json podcasts/<name>.mp3
    ```
-   Default is `gemini-3.1-flash-tts-preview` (newest TTS model). If prosody sounds rushed or Japanese code-switching sounds unnatural, try smaller batches (`PODCAST_BATCH_SIZE=4`) — this is usually the fix, not the model. The `gemini-2.5-*` models exist but are older generation; don't reach for them reflexively.
+   Default is `gemini-3.1-flash-tts-preview` (newest TTS model). The `gemini-2.5-*` models are older generation; don't reach for them reflexively.
+
+   **Batch size:** default batch size is 8. For dialogues **≥ 8,000 words** (roughly ≥ 50 min target, and any 60-min Pimsleur episode), start with the smaller batch from the first run — don't wait for late-batch TTS timeouts to force a retry:
+   ```bash
+   source /workspace/.env && PODCAST_BATCH_SIZE=4 bash /workspace/generate.sh /tmp/dialogue.json podcasts/<name>.mp3
+   ```
+   Same fix applies if prosody sounds rushed or Japanese code-switching sounds unnatural on shorter episodes.
 
 8. Deliver via Telegram:
    ```bash
@@ -326,7 +336,7 @@ Both A and B code-switch naturally. Neither is "the teacher." A drops Japanese t
    total_dialogue_words: <count>
    ```
 
-10. Commit the transcript only (not the .mp3) and push.
+10. Commit the transcript only (not the .mp3) and push. **Branch naming convention:** `autopilot/podcast-ep<N>-<slug>` for Pimsleur episodes, `autopilot/podcast-<slug>` otherwise. Do not invent per-run branch names with timestamps; stable names are easier to find later.
 
 ## Dialogue length
 
@@ -336,7 +346,7 @@ Both A and B code-switch naturally. Neither is "the teacher." A drops Japanese t
 
 ## Structure
 
-Every episode has: hook → buildup → deep dive → roast → "okay actually that's sick" → closer. But don't let structure become a template — let the tangents be real.
+Every episode has: hook → steelman (best honest case for the material) → deep dive → what-breaks (failure modes, load-bearing assumptions, prior art that killed similar attempts) → calibrated closer ("works if X, fails if Y, testable by Z"). Do NOT end on a celebration beat. Don't let structure become a template either — let the tangents be real.
 
 ## What this skill does NOT do
 

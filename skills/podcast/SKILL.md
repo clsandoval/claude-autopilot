@@ -22,26 +22,32 @@ The argument is a path to a markdown or text file (spec, plan, design doc, etc.)
 ## Style
 
 - Two friends riffing, not an interview. They interrupt each other, go on tangents, circle back.
-- One person knows the topic, the other is reacting live — real curiosity and real roasting.
 - Conversational cadence: short sentences, false starts, "wait wait wait", "okay but hear me out".
 - Build up the weird/interesting parts like you're revealing a mystery or telling a story at a bar.
-- Be blunt: if something is dumb, say it's dumb. If something is cool, get excited.
+- Be blunt: if something is dumb, say it's dumb.
 - Natural filler is okay: "like", "right?", "I mean", "dude" — makes it sound human, not scripted.
+
+## Default posture: pragmatic, pessimism-leaning, steelman-first
+
+Both speakers default to **skeptical pragmatism**. Assume most claims in the artifact are overstated, under-specified, or won't survive contact with reality. The episode's job is to stress-test the material, not celebrate it.
+
+This is NOT snark. The move is **steelman → critique**:
+
+1. **Steelman first.** One speaker articulates the strongest honest version of each major claim — the version the author *wishes* they'd written. No critique lands before the steelman exists.
+2. **Then critique.** Attack the steelmanned version. What load-bearing assumption breaks it? What's the cheapest experiment that would kill the idea? What prior art tried this and failed?
+3. **End calibrated.** Not "this is great," not "this is doomed." A specific call: "works if X, falls over if Y, testable by Z."
+
+Treat enthusiasm in the source material as a yellow flag, not a green light.
 
 ## Personas
 
-**Person A** — The one who read the spec. Brings the topic, explains the core idea, but also
-has opinions about what's sketchy. Think: the friend who found something weird on the internet
-and is telling you about it at a bar. Goes on tangents. Gets visibly fired up about the
-clever parts.
+**Neither speaker is the optimist or the hype person.** Both are pragmatist-skeptics who differ in *what kind* of skepticism.
 
-**Person B** — Reacting in real time. Hasn't read it. But B is NOT just a prompt machine —
-B has opinions, makes connections, goes on tangents, and sometimes takes over the conversation.
-B draws on their own experience to challenge or build on what A says. B should carry equal
-weight in the conversation, not just ask "and then what?" after every A line. Give B multi-sentence
-responses, their own jokes, moments where they riff on an idea unprompted. The "wait, they
-did WHAT?" energy, but also the "okay that reminds me of..." and "no no no, here's the actual
-problem with that" energy.
+**Person A** — One angle: e.g. the implementer who's read the spec and knows the gap between the README and the code. Has seen this pattern fail before.
+
+**Person B** — A different angle: e.g. the market-skeptic, or the adjacent expert who knows a cheaper path achieves 80% of the value. B is NOT just a prompt machine. B has their own examples, their own prior art, their own disagreements. Multi-sentence responses, unprompted riffs, "no no no, here's the actual problem with that." Equal airtime and equal substance.
+
+If either speaker catches themselves sounding like a booster, the other calls it out.
 
 ## Workflow
 
@@ -65,7 +71,44 @@ problem with that" energy.
 5. Save the transcript to `podcasts/<name>-transcript.md`
    - The `<name>` is derived from the input filename (strip extension)
    - Format the transcript as readable markdown with **A:** and **B:** prefixes
-6. Write the JSON array to a temp file
+6. Write the JSON array to a temp file (e.g. `/tmp/dialogue.json`)
+6.5. **Run the pre-submit verification BEFORE audio generation. Hard-fail on any issue — rewrite the dialogue, do not edit the thresholds:**
+
+   ```bash
+   python3 <<'PY'
+   import json, re, sys
+   d = json.load(open("/tmp/dialogue.json"))
+   a = [t["text"] for t in d if t["speaker"] == "a"]
+   b = [t["text"] for t in d if t["speaker"] == "b"]
+   wa = sum(len(t.split()) for t in a)
+   wb = sum(len(t.split()) for t in b)
+   total = wa + wb
+   all_text = " ".join(a + b).lower()
+   banned = ["that's wild", "tell me more", "yeah exactly", "honestly", "genuinely",
+             "literally", "100%", "okay so", "right? right?", "love that", "that's fascinating"]
+   sycophancy = ["good point", "great point", "fair point", "that's a good",
+                 "you're right about", "you nailed it", "exactly what i",
+                 "brilliant", "really cool", "so cool", "super cool",
+                 "love how you", "love that you", "this is such",
+                 "really well put", "couldn't have said", "nailed"]
+   banned_hits = sorted({p for t in a + b for p in banned if p in t.lower()})
+   syco_hits = [m for m in sycophancy if m in all_text]
+   fails = []
+   if not (0.45 <= wa/total <= 0.55):
+       fails.append(f"BALANCE: A is {100*wa/total:.1f}% (must be 45-55%)")
+   if banned_hits:
+       fails.append(f"BANNED PHRASES: {banned_hits}")
+   if len(syco_hits) > 1:
+       fails.append(f"SYCOPHANCY: {len(syco_hits)} markers {syco_hits} — rewrite for pragmatic skepticism (see posture section)")
+   print(f"Words A/B/Total: {wa}/{wb}/{total} — A={100*wa/total:.1f}%")
+   print(f"Banned: {banned_hits}")
+   print(f"Sycophancy: {syco_hits}")
+   if fails:
+       print("FAILED CHECKS:"); [print(" -", f) for f in fails]; sys.exit(1)
+   print("OK — ready for audio")
+   PY
+   ```
+
 7. Run the audio generation script:
    ```bash
    bash "${CLAUDE_PLUGIN_ROOT}/scripts/generate.sh" <temp-json> podcasts/<name>.mp3
@@ -81,12 +124,11 @@ problem with that" energy.
 episode. A 3000-word design doc gets ~6 minutes. Each minute is roughly 150 words of dialogue.
 
 **Structure:**
-- **The hook** — A drops the topic casually, B is immediately curious or skeptical
-- **The buildup** — A explains the core idea, B reacts live, interrupts with questions
-- **The deep dive** — They get into the weirdest/most interesting part, riff on it
-- **The roast** — B catches something dumb or hand-wavy, A has to defend it (or can't)
-- **The "okay actually that's sick"** — The moment where something clicks for B
-- **The closer** — Quick, natural wrap. No formal summary. Just vibes.
+- **The hook** — A drops the topic casually, B is immediately skeptical
+- **The steelman** — one speaker articulates the strongest honest version of the material's core claim
+- **The deep dive** — they get into the weirdest/most interesting part, riff on it
+- **The what-breaks** — name specific failure modes, load-bearing assumptions, prior art that killed similar attempts
+- **The calibrated closer** — "works if X, fails if Y, testable by Z". Not a verdict, not a vibes wrap. Do NOT end on celebration.
 
 **Tone rules:**
 - Write like people talk, not like people write. Short bursts. Interruptions. Reactions.
@@ -95,8 +137,8 @@ episode. A 3000-word design doc gets ~6 minutes. Each minute is roughly 150 word
 - Let them disagree. Let them be wrong. Let them change their mind mid-sentence.
 - Avoid: puns, "that's a great question", corporate speak, AI filler, anything that
   sounds like a scripted podcast ad read.
-- Never use "honestly", "genuinely", or "literally" — these are AI-dialogue crutches.
-  Just let the statement stand on its own without a sincerity qualifier.
+- Banned AI-dialogue crutches: "honestly", "genuinely", "literally", "that's wild", "tell me more", "yeah exactly", "100%", "okay so", "right? right?", "love that", "that's fascinating". The pre-submit check (step 6.5) greps for these and fails the dialogue if any are present.
+- Banned sycophancy markers (>1 hit = fail): "good point", "great point", "fair point", "that's a good", "you're right about", "you nailed it", "exactly what i", "brilliant", "really cool", "so cool", "super cool", "love how you", "love that you", "this is such", "really well put", "couldn't have said", "nailed".
 - At least one "wait, go back" moment where B catches something A glossed over.
 - At least one moment where they both get fired up about the same thing.
 
