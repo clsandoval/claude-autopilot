@@ -310,22 +310,30 @@ These are specialized dispatch flows for `/autopilot podcast <brief>` and `/auto
    PODCAST_SKILL_ID=$(echo "$PODCAST_SKILL_RESPONSE" | jq -r '.id')
    ```
 
-2. **Upload generate.sh** as a file:
+2. **Upload generate.sh, verify-dialogue.py, and the Pimsleur reference** as session resources (not skill files). The agent reads `podcast-pimsleur.md` only for Pimsleur episodes, and runs `verify-dialogue.py` before audio gen:
    ```bash
-   SCRIPT_UPLOAD=$(curl -sS -X POST "https://api.anthropic.com/v1/files" \
-     -H "x-api-key: $ANTHROPIC_API_KEY" \
-     -H "anthropic-version: 2023-06-01" \
-     -H "anthropic-beta: files-api-2025-04-14" \
-     -F "file=@$SKILL_DIR/scripts/generate.sh;filename=generate.sh" \
-     -F "purpose=agent")
-   SCRIPT_FILE_ID=$(echo "$SCRIPT_UPLOAD" | jq -r '.id')
+   upload() {
+     curl -sS -X POST "https://api.anthropic.com/v1/files" \
+       -H "x-api-key: $ANTHROPIC_API_KEY" \
+       -H "anthropic-version: 2023-06-01" \
+       -H "anthropic-beta: files-api-2025-04-14" \
+       -F "file=@$1;filename=$(basename $1)" -F "purpose=agent" | jq -r '.id'
+   }
+   SCRIPT_FILE_ID=$(upload "$SKILL_DIR/scripts/generate.sh")
+   VERIFY_FILE_ID=$(upload "$SKILL_DIR/scripts/verify-dialogue.py")
+   PIMSLEUR_REF_ID=$(upload "$SKILL_DIR/remote-skills/podcast-pimsleur.md")
    ```
 
-3. **Upload .env** with ElevenLabs + Telegram keys (find .env in project dir or source from env vars)
+3. **Upload .env** with Telegram (+ Google) keys (find .env in project dir or source from env vars)
 
 4. **Create agent** with podcast skill + brainstorming skill + agent_toolset
 
-5. **Create session** with resources: generate.sh mounted at `/workspace/generate.sh`, .env at `/workspace/.env`, and optionally a GitHub repo if the brief needs codebase access
+5. **Create session** with resources mounted at:
+   - `/workspace/generate.sh`
+   - `/workspace/verify-dialogue.py`
+   - `/workspace/podcast-pimsleur.md` (only needed for Pimsleur dispatches — safe to always mount)
+   - `/workspace/.env`
+   - optionally a GitHub repo if the brief needs codebase access
 
 6. **Construct and send the brief** — the user's input IS the source material for the podcast. The brief should instruct the agent to follow the remote podcast skill.
 

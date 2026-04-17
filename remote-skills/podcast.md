@@ -1,409 +1,137 @@
 ---
 name: remote-podcast
-description: "Generate podcast audio from source material with optional Pimsleur bilingual Japanese immersion mode."
+description: Use when generating a two-speaker podcast episode from mounted source material in a Managed Agent container. Pimsleur bilingual Japanese immersion activates via `[PIMSLEUR]` marker in the brief.
 ---
 
-# Remote Podcast — Artifact-to-Audio (Managed Agent Version)
+# Remote Podcast
 
-Runs inside a Managed Agent container. Generate a podcast from source material provided via the brief and mounted resources, then deliver via Telegram.
+Generate a two-speaker podcast from source material and mounted resources, then deliver via Telegram.
+
+## Overview
+
+Two friends co-investigating a topic — warm toward each other, skeptical toward the material. Dry humor, real disagreement, no AI-podcast hype. Pimsleur mode adds a Japanese language layer (see `podcast-pimsleur.md`).
+
+Output: `dialogue.json`, a transcript, an MP3 from Gemini TTS, a Telegram send.
 
 ## Environment
 
-- `source /workspace/.env` at the start of EVERY bash command (separate shells)
-- Audio script at `/workspace/generate.sh` (or `/mnt/session/uploads/workspace/generate.sh` — check both)
-- Install deps: `apt-get update && apt-get install -y ffmpeg jq curl python3-pip`
-- `chmod +x /workspace/generate.sh`
-
-## Personas — the two speakers are NOT an expert/novice pair
-
-This is the single most common failure mode. Agents default to A-explains-B-reacts and produce a sycophantic lecture. Reject that framing.
-
-**Both A and B have expertise. Both default to skeptical pragmatism (see the posture section below). They differ in *what kind* of skepticism, not in whether they're skeptical.** The interesting thing is the collision of their takes, not one teaching the other.
-
-- **Person A** — one angle of skepticism (e.g. the implementer who's seen this pattern fail before; the insider who knows the gap between the README and the code)
-- **Person B** — a different angle of skepticism (e.g. the market-skeptic who doubts anyone wants this; the adjacent-expert who knows a cheaper path achieves 80% of the value)
-
-Neither speaker is "the optimist." Neither is the hype-person. If either of them ever catches themselves sounding like a booster, the other calls it out.
-
-B is not a prompt-machine. B brings their own angle, their own examples, their own curiosity. B sometimes catches something A glossed over, and when they disagree, they say so — **warmly, not combatively** ("hmm, I don't know about that" or "wait, is it really X?"). B is sometimes right and A concedes ("oh — yeah, that's fair"), and vice versa.
-
-If the brief describes the speakers as expert/novice, reinterpret it — make B an expert in something adjacent that illuminates the topic from a different direction. Same warmth still applies.
-
-## Style — tone peg: Red Web / We Say Things
-
-The podcast target is two knowledgeable friends **co-investigating** a topic — think **Red Web** (Annabel & Cayley) or **We Say Things** (Catherine Whitaker & David Law). They like each other, they've been having this same conversation for years, and they're dryly funny in a way that comes from noticing things together, not from zingers at each other.
-
-- Curious and investigative — "huh, wait, does that actually work?"
-- Dry humor, offhand, from the material itself — never forced, never mugging
-- Mutual amusement at the absurdity of whatever they're discussing
-- Gentle pushback when they disagree: "mm, I don't know about that" / "is it really five minutes?" — not "read past the first sentence."
-- When one is wrong, the other corrects without heat: "oh — wait, is it actually...?" / "hmm, yeah, that's fair"
-- They're on the same team, even when positions differ. Co-investigating, not debating.
-- Short sentences. False starts. Self-correction mid-sentence. "Wait, no — actually..."
-- Humor comes from specificity (concrete examples, dry asides), not from setups and punchlines.
-
-**Anti-combat guard (the opposite overcorrection from sycophancy).** The speakers are NOT hostile. No condescension, no sniping, no "read past the first sentence," no "I'll bring popcorn." If reading a line aloud would make Annabel or Cayley say "woah, easy" — rewrite it softer. The bar isn't debate-class; it's two friends at a coffee shop noticing something weird about the thing they care about.
-
-Blunt is fine, but bluntness is aimed at the **material**, not at the other speaker. "That claim is a press-release claim, not a technical one" is good. "Read past the first sentence" is not.
-
-**Reconciling with the skeptical-pragmatism posture below:** warmth and skepticism aren't opposites. The speakers warmly investigate whether the thing actually works. They're the friends who'd say "I want this to be good, so let me tell you the three ways I think it breaks." Warm toward each other, skeptical toward the material.
-
-## Banned phrases (AI-dialogue crutches)
-
-The agent MUST grep the dialogue for these and remove/rewrite. If any remain at verification time, the dialogue fails the pre-submit check:
-
-- "that's wild"
-- "tell me more"
-- "yeah exactly"
-- "honestly"
-- "genuinely"
-- "literally"
-- "100%"
-- "okay so"
-- "right? right?"
-- "love that"
-- "that's fascinating"
-
-(`"interesting"` is a weak tell but skipped by the auto-check because it produces false positives in compound phrases — watch for it manually.)
-
-These are the tells. Real people don't talk like this; they use specific reactions tied to what was just said.
-
-## Default posture: pragmatic, pessimism-leaning, steelman-first
-
-The speakers' default orientation to the source material is **skeptical pragmatism**. Assume most ideas/plans/features the brief describes are either (a) overstated, (b) under-specified, or (c) probably won't survive contact with reality. The episode's job is to stress-test the material, not celebrate it.
-
-**This is NOT cynicism or snark.** Dismissive pessimism ("this is dumb, next") is just as lazy as sycophancy — it avoids engagement. The required move is **steelman → critique**:
-
-1. **Steelman first.** For every major claim in the brief, have one speaker articulate the strongest honest version of it — the version the original author *wishes* they'd written. This is non-negotiable. No critique is allowed to land before the steelman exists.
-2. **Then critique.** Attack the steelmanned version, not a strawman. Identify: what assumptions does this rely on? What breaks it? What's the cheapest version that achieves 80% of the value, and why isn't *that* the plan? Where's the evidence this hasn't been tried before and failed?
-3. **End with a calibrated position.** Not "everything's great" and not "everything's doomed." A specific call: "this works if X, falls over if Y, and you'll know within Z weeks."
-
-Pragmatic pessimism means: assume schedules slip, assume the demo doesn't generalize, assume the clever architecture has a hidden cost, assume the user research is thin, assume the competitive moat is smaller than claimed. Demand evidence before belief. Treat enthusiasm in the source material as a yellow flag, not a green light.
-
-Concrete language cues (use these shapes of sentence):
-- "Okay, steelman first: the reason someone would build it this way is ..."
-- "What's the cheapest experiment that would kill this idea? Has anyone run it?"
-- "This works if [specific load-bearing assumption]. What happens when that breaks?"
-- "I've seen this exact pattern before — [specific prior example] — and it failed because [specific reason]. What's different here?"
-- "The press-release version of this is X. The boring version is Y. Which one is actually in the repo?"
-
-## Anti-sycophancy guard
-
-Sycophancy is the default failure mode of AI-written dialogue. It doesn't show up as obvious flattery — it shows up as:
-
-- **Total agreement with the source material.** Every claim the brief makes is repeated approvingly. Every feature is "actually really clever." Nothing is weak, hand-wavy, unconvincing, or dumb.
-- **B validates A's every point.** Even the disagreements are soft — "I mean, that's a fair point, but maybe..."
-- **Compliment loops.** "That's such a good way of putting it." "You're totally right about that." "I love how you framed that."
-- **Treating ordinary facts as profound.** Nodding along at statements that are, actually, kind of boring or obvious.
-- **No stakes, no claims at risk.** Nobody is wrong, nobody updates, nothing lands with consequence.
-
-Structural rules to fight this:
-
-1. **At least one claim from the source material must be called out as weak, unconvincing, overstated, or suspect.** A or B (ideally B) reads the primary material critically, not as a fan. Example: "Okay, but the README says the adversarial benchmark 'refuses to fit garbage data.' That's a press release, not a technical claim. What does 'refuses' mean in the actual code? I couldn't find a check that does that."
-2. **At least one moment where a speaker is provably wrong and gets corrected.** Not "good point" — actually wrong and they say "oh — wait, yeah, you're right, I was thinking of something else."
-3. **At least one moment of genuine confusion.** Speaker admits they don't understand something. Doesn't pretend.
-4. **Neither speaker is allowed to be the hype person.** If A is presenting the material, A must also be the first to point out its weaknesses. If B is pushing back, B must also concede when A actually has the better argument.
-5. **No compliments on the topic itself.** Not "this is such a cool project," not "that's a brilliant architecture." The content should be interesting enough that you don't need to say it's interesting.
-6. **No compliments between speakers.** They can laugh, they can concede, they can be surprised — but they never tell each other they made a good point.
-7. **If the brief gives a strong POV, the speakers should still interrogate it.** Don't accept premises uncritically just because the brief asserts them.
-
-Sycophancy marker list (integrated into the pre-submit script in step 4; >1 hit = hard fail):
-
-```
-"good point", "great point", "fair point", "that's a good",
-"you're right about", "you nailed it", "exactly what i",
-"brilliant", "really cool", "so cool", "super cool",
-"love how you", "love that you", "this is such",
-"really well put", "couldn't have said", "nailed"
-```
-
-## Balance rule (hard constraint)
-
-Word count per speaker: each between 45% and 55% of total dialogue words. Outside this range = rewrite, not ship.
-
-Turn count per speaker: roughly equal (±20%).
-
-Average turn length: within 30% of each other. If A's average turn is 50 words and B's is 15, B is a prompt-machine — rewrite B's turns into real contributions.
-
-## Pimsleur Mode — Bilingual Japanese Immersion
-
-Activated by `[PIMSLEUR]` marker in the brief. Overrides the standard dialogue style with these rules.
-
-### Method: what Pimsleur actually is, and how a podcast adapts it
-
-The Pimsleur method rests on four principles:
-
-1. **Graduated interval recall (spaced repetition).** Each new item is recalled at increasing intervals — roughly 5 seconds, 25s, 2 minutes, 10 minutes, 1 hour, and so on, each exposure roughly doubling the gap. A podcast can't page-fault on "did you remember?" the way an interactive lesson does, but it CAN stage exposures of each new item across the episode at widening intervals rather than clustered.
-2. **Anticipation (pass-through).** Classical Pimsleur forces the learner to *produce* the target before hearing it. A passive-listen podcast can't force production, but it can simulate the beat: A says the English meaning, there's a pause or hesitation, then B uses the Japanese. The listener's brain fills the gap.
-3. **Core vocabulary, high-utility patterns.** Pimsleur focuses on function words and common structures first, not obscure vocabulary. The `schedule.yaml` curriculum encodes this — do not override it.
-4. **Organic grammar (inductive, not metalinguistic).** Never say "this is the conditional form" or explain tenses. Use the grammar pattern 4+ times across varied contexts; the listener's brain absorbs the rule from the pattern. Explicit grammar-talk breaks the illusion and loses listeners.
-
-**How this shapes the dialogue:**
-
-- **Stage exposures with spacing, not clustering.** If a new vocab item appears at line 3, its second exposure should be line 15+, third exposure line 30+. Don't bunch all three exposures in the first third and then never mention the word again. Plot a rough exposure timeline before writing.
-- **Review items get the same spacing treatment.** Review items from past episodes should appear throughout, not all in one "review block."
-- **Anticipation beats.** Engineer 2-3 moments per episode where the English meaning lands first and the Japanese appears a beat later — as if the speaker hesitated, thought of the word, then said it. e.g. `"it was, uh — what's the word — a \"約束\", a promise."`
-- **No grammar lectures.** If a speaker would naturally explain a grammar point, cut it. Let the pattern recur instead.
-
-### Source of truth: schedule.yaml
-
-### Source of truth: schedule.yaml
-
-The learner maintains a pre-allocated curriculum at `japanese/schedule.yaml` (mounted as a session resource; may resolve under `/workspace/japanese/` or `/mnt/session/uploads/workspace/japanese/`).
-
-The brief will cite an episode number (e.g. "Episode: 4"). The agent MUST:
-
-1. Locate `schedule.yaml` in the mounted resources.
-2. Find the entry matching the brief's episode number (key format: `episode_N`).
-3. Use ITS pre-allocated `vocab` list and `grammar` list verbatim. Do NOT invent new vocab/grammar items. Do NOT substitute items "that fit the topic better" — the whole point of the schedule is that items are pre-reserved so parallel dispatches don't collide and the curriculum progresses systematically.
-4. Use the `japanese_ratio` from that episode (or fall back to `profile.yaml` if absent).
-5. Read `profile.yaml` to understand current level and `episodes_completed`.
-
-If the episode entry is missing from schedule.yaml, stop and report — do NOT ad-hoc a curriculum.
-
-### The ratio is a hard constraint, not a suggestion
-
-The brief specifies `Japanese Ratio Target` between 0.20 and 1.00 (see `profile.yaml` for the ramp — later tiers go 0.30, 0.60, 0.80, 1.00). This measures **Japanese character presence as a fraction of total spoken content**. It is NOT a vague vibe.
-
-**Concrete operationalization:**
-
-- At 0.20: roughly every 3rd turn (across A and B combined) must contain at least one Japanese word or short phrase. At minimum, 30% of turns have Japanese content.
-- At 0.40: full Japanese sentences appear every 2-3 turns. Most turns have at least one Japanese word.
-- At 0.60: majority Japanese. English only surfaces for new concepts and quick clarifications.
-
-**Minimum CJK character counts by episode length:**
-
-Formula: `min_cjk = ratio × dialogue_words × 2` (English word ≈ 2 moras of speaking time; CJK chars ≈ moras, so this equalizes spoken-time presence).
-
-| Audio target | Dialogue words | Min CJK chars at 0.20 | at 0.40 | at 0.60 |
-|--------------|----------------|----------------------|---------|---------|
-| 30 min       | ~4500          | 1800                 | 3600    | 5400    |
-| 60 min       | ~9000          | 3600                 | 7200    | 10800   |
-
-If the actual CJK count is below the minimum at verification time, the dialogue FAILS and must be rewritten.
-
-### New vocabulary (5-12 words per episode, from the episode schedule)
-
-Three-exposure minimum per item, **spaced across the episode at widening intervals** (graduated interval recall — see Method section above). Each new vocab item must appear AT LEAST 3× total, with exposures roughly at the 20%, 50%, 80% marks of the episode (not clustered at the start).
-
-**Per-exposure scaffolding** (decreasing English support each time):
-
-1. **First exposure**: meaning first (English), brief hesitation, then Japanese. Quoted for TTS.
-   - `"It was a, uh — what's the word — \"約束\", a promise, basically. I had to go."`
-2. **Second exposure** (later in episode): Japanese with light context, no re-teaching.
-   - `"That \"約束\" came back to bite us."`
-3. **Third exposure**: Japanese only, meaning clear from context.
-   - `"Yeah, \"約束なんだよね.\""`
-
-**Use the dictionary form at least once.** The pre-submit check does literal substring matching — if the curriculum item is `食べる` but the dialogue only uses `食べた` / `食べて`, the check will count 0 exposures. Include the dictionary form on at least one of the three exposures; inflected forms count as additional natural usage beyond that.
-
-Verify: each new vocab item appears ≥3 times in the dialogue, dictionary form included.
-
-### New grammar (1-2 patterns per episode)
-
-Introduce through example sentences, NOT metalanguage. Do NOT say "this is the conditional form." Use the pattern 4+ times in varying contexts with decreasing English scaffolding.
-
-### Review items
-
-Previously learned vocab/grammar listed in the brief under `=== REVIEW ITEMS ===` must appear in the dialogue naturally — no "remember this word?" — just use them. Target 10+ review items woven in.
-
-### Speaker dynamics in Pimsleur Mode
-
-Both A and B code-switch naturally. Neither is "the teacher." A drops Japanese terms when excited. B picks them up, sometimes misuses them, self-corrects — `"wait, \"予約を取ります\"? no, \"予約する\", right?"` — this teaches without lecturing.
-
-### TTS enunciation: wrap Japanese in quotes
-
-Gemini 3.1 Flash TTS enunciates Japanese phrases noticeably better when they're wrapped in double quotes. Write every Japanese word, phrase, or sentence in the dialogue JSON inside `""`:
-
-```json
-{"speaker": "a", "text": "\"なあ,\" I've been staring at the session code. \"毎回,\" we pay four hundred milliseconds."}
-```
-
-Not:
-```json
-{"speaker": "a", "text": "なあ、I've been staring at the session code. 毎回、we pay four hundred milliseconds."}
-```
-
-This is a TTS rendering hint, not punctuation for the listener — the quotes function as "pronounce this as a quoted phrase" markers. Apply to all JP chunks including single words (`"約束"` not just `約束`), short fragments, and full sentences. English remains unquoted.
-
-Why: without quotes, the model sometimes skips the Japanese or runs it together with adjacent English with unclear boundaries. With quotes, each Japanese block gets its own prosodic unit and cleaner articulation.
-
-The quotes count toward the raw character total in the dialogue JSON, but the CJK regex in verification only counts kana/kanji chars, so the pre-submit gate is unaffected.
+- `source /workspace/.env` in every bash command
+- Scripts may mount at `/workspace/` OR `/mnt/session/uploads/workspace/` — run `ls -R` on both to find paths
+- Install once: `apt-get update && apt-get install -y ffmpeg jq curl python3-pip python3-yaml`
 
 ## Workflow
 
-1. Read the brief and ALL mounted resources. Mounts may resolve at `/mnt/session/uploads/workspace/...` rather than `/workspace/...` directly — run `ls -R /mnt/session/uploads/ 2>/dev/null; ls -R /workspace/ 2>/dev/null` early to discover paths.
+1. **Read the brief and ALL mounted resources.** `ls -R /mnt/session/uploads/ 2>/dev/null; ls -R /workspace/ 2>/dev/null`. For Pimsleur episodes, also read `japanese/schedule.yaml`, `japanese/profile.yaml`, and the `podcast-pimsleur.md` reference file.
 
-2. Plan the dialogue arc and thesis. What is the ONE non-obvious claim this episode makes? Structure around that, not around a linear tour of the material.
+2. **Plan the arc.** What is the ONE non-obvious thread or claim this episode makes? Structure around that — not a linear tour of the material.
 
-3. Draft the dialogue as a JSON array at `/tmp/dialogue.json`:
+3. **Draft `/tmp/dialogue.json`**:
    ```json
-   [
-     {"speaker": "a", "text": "..."},
-     {"speaker": "b", "text": "..."}
-   ]
+   [{"speaker": "a", "text": "..."}, {"speaker": "b", "text": "..."}]
    ```
+   For Pimsleur episodes, follow `podcast-pimsleur.md` for exposure scaffolding, kana-vs-kanji, quoted Japanese, and ratio targets.
 
-4. **Run the pre-submit verification script BEFORE generating audio.** Set `RATIO`, `NEW_VOCAB`, and `REVIEW_ITEMS` from the brief's episode entry. For non-Pimsleur episodes set `RATIO=0` and leave vocab/review lists empty. Run this exactly:
-
+4. **Verify before generating audio:**
    ```bash
-   # REPLACE these placeholders with values from the brief before running.
-   # Do not ship with placeholder values — the check will pass vacuously.
-   RATIO=0.00                    # from schedule.yaml episode_N.japanese_ratio (0 for non-Pimsleur)
-   NEW_VOCAB=''                  # comma-sep, from schedule.yaml episode_N.vocab  (e.g. '用事,予定,約束')
-   NEW_GRAMMAR=''                # comma-sep, from schedule.yaml episode_N.grammar (e.g. 'なくちゃ')
-   REVIEW_ITEMS=''               # comma-sep, from the brief's === REVIEW ITEMS === block
-   # NOTE on grammar patterns: curricula often store them with a leading tilde
-   # (e.g. '〜なくちゃ'). Strip the tilde before passing — '.count()' is a literal
-   # substring match and '〜なくちゃ' will not match 'なくちゃ' in natural text.
+   # Non-Pimsleur
+   python3 /workspace/verify-dialogue.py /tmp/dialogue.json
 
-   RATIO="$RATIO" NEW_VOCAB="$NEW_VOCAB" NEW_GRAMMAR="$NEW_GRAMMAR" REVIEW_ITEMS="$REVIEW_ITEMS" python3 <<'PY'
-   import json, re, sys, os
-   d = json.load(open("/tmp/dialogue.json"))
-   a = [t["text"] for t in d if t["speaker"] == "a"]
-   b = [t["text"] for t in d if t["speaker"] == "b"]
-   wa = sum(len(t.split()) for t in a)
-   wb = sum(len(t.split()) for t in b)
-   total = wa + wb
-   all_text = " ".join(a + b)
-   cjk = len(re.findall(r"[\u3040-\u30ff\u4e00-\u9fff]", all_text))
-   turns_with_cjk = sum(1 for t in a + b if re.search(r"[\u3040-\u30ff\u4e00-\u9fff]", t))
-   banned = ["that's wild", "tell me more", "yeah exactly", "honestly", "genuinely",
-             "literally", "100%", "okay so", "right? right?", "love that", "that's fascinating",
-             "wait what", "no way", "shut up", "mind blown", "big if true"]
-   hits = [p for t in a + b for p in banned if p in t.lower()]
-   sycophancy_markers = [
-       "good point", "great point", "fair point", "that's a good",
-       "you're right about", "you nailed it", "exactly what i",
-       "brilliant", "really cool", "so cool", "super cool",
-       "love how you", "love that you", "this is such",
-       "really well put", "couldn't have said", "nailed",
-   ]
-   lower_text = all_text.lower()
-   syco_hits = [m for m in sycophancy_markers if m in lower_text]
-
-   # Anti-combat check — the opposite overcorrection. The speakers are not
-   # hostile. No debate-class snark or condescension.
-   combat_markers = [
-       "read past", "read the docs", "you're wrong", "you are wrong",
-       "let me rephrase", "next time", "i'll bring popcorn",
-       "go pitch it", "that's not architecture", "reinvented",
-       "learn to read", "that's just", "obviously you",
-   ]
-   combat_hits = [m for m in combat_markers if m in lower_text]
-
-   ratio = float(os.environ.get("RATIO", "0") or 0)
-   new_vocab = [x.strip() for x in os.environ.get("NEW_VOCAB", "").split(",") if x.strip()]
-   new_grammar = [x.strip() for x in os.environ.get("NEW_GRAMMAR", "").split(",") if x.strip()]
-   review_items = [x.strip() for x in os.environ.get("REVIEW_ITEMS", "").split(",") if x.strip()]
-
-   # min_cjk = ratio × dialogue_words × 2  (English word ≈ 2 moras; CJK chars ≈ moras)
-   min_cjk = int(ratio * total * 2)
-   # Turn coverage scales linearly from 0.30 at ratio 0.20 to 0.90 at ratio 0.60
-   min_turn_cjk_pct = min(0.30 + (ratio - 0.20) * 1.5, 0.95) if ratio > 0 else 0
-   turn_pct = turns_with_cjk / max(len(a) + len(b), 1)
-
-   print(f"Total words: {total}")
-   print(f"A: {wa} ({100*wa/total:.1f}%)  B: {wb} ({100*wb/total:.1f}%)")
-   print(f"A turns: {len(a)} avg {wa/max(len(a),1):.0f}w  B turns: {len(b)} avg {wb/max(len(b),1):.0f}w")
-   print(f"CJK chars: {cjk} (min required: {min_cjk} for ratio {ratio})")
-   print(f"Turns with CJK: {turns_with_cjk}/{len(a)+len(b)} ({100*turn_pct:.1f}%, min {100*min_turn_cjk_pct:.0f}%)")
-   print(f"Banned phrase hits: {len(hits)} — {set(hits)}")
-   print(f"Sycophancy markers: {len(syco_hits)} — {syco_hits}")
-   print()
-   fails = []
-   if total == 0:
-       print("EMPTY DIALOGUE — dialogue.json has no content")
-       sys.exit(1)
-   if not (0.45 <= wa/total <= 0.55):
-       fails.append(f"BALANCE: A is {100*wa/total:.1f}% (must be 45-55%)")
-   if hits:
-       fails.append(f"BANNED PHRASES: {set(hits)}")
-   if len(syco_hits) > 1:
-       fails.append(f"SYCOPHANCY: {len(syco_hits)} markers ({syco_hits}) — rewrite for pragmatic skepticism (see posture section)")
-   if combat_hits:
-       fails.append(f"COMBAT: {combat_hits} — speakers are Red Web / We Say Things warm, not debate-class combative. Soften.")
-   print(f"Combat markers: {len(combat_hits)} — {combat_hits}")
-   if ratio > 0:
-       if not new_vocab and not review_items:
-           fails.append("PIMSLEUR GATE: RATIO>0 but NEW_VOCAB and REVIEW_ITEMS are both empty — did you forget to substitute the placeholders?")
-       if cjk < min_cjk:
-           fails.append(f"CJK FLOOR: {cjk} < {min_cjk} required for ratio {ratio} — need {min_cjk - cjk} more Japanese chars")
-       if turn_pct < min_turn_cjk_pct:
-           fails.append(f"CJK COVERAGE: only {100*turn_pct:.1f}% of turns contain Japanese (need {100*min_turn_cjk_pct:.0f}%) — sprinkling single words isn't enough, write Japanese phrases/sentences")
-       for w in new_vocab:
-           n = all_text.count(w)
-           if n < 3:
-               fails.append(f"NEW VOCAB: '{w}' appears {n}× (need ≥3)")
-       for g in new_grammar:
-           n = all_text.count(g)
-           if n < 4:
-               fails.append(f"NEW GRAMMAR: '{g}' appears {n}× (need ≥4)")
-       missing = [w for w in review_items if all_text.count(w) == 0]
-       if missing:
-           fails.append(f"REVIEW ITEMS MISSING: {missing}")
-   if fails:
-       print("FAILED CHECKS:"); [print(" -", f) for f in fails]; sys.exit(1)
-   print("OK — ready for audio")
-   PY
+   # Pimsleur
+   python3 /workspace/verify-dialogue.py /tmp/dialogue.json \
+     --episode <N> \
+     --schedule /workspace/japanese/schedule.yaml \
+     --review-items "<comma-sep from brief>"
    ```
+   If it fails, REWRITE the dialogue. Do NOT edit the script thresholds.
 
-   If the check fails, REWRITE the dialogue. Do not generate audio. Iterate until it passes. **Do not edit the thresholds to make the check pass** — rewrite the dialogue to include more Japanese phrases and sentences (not just single-word sprinkles).
+5. **Save transcript** to `podcasts/<name>-transcript.md` with `**A:**` / `**B:**` prefixes.
 
-5. Pimsleur-specific gates (CJK floor, turn coverage, vocab ≥3× each, grammar ≥4× each, review items present) are enforced by the script above when `RATIO>0`. If the script printed `OK — ready for audio`, you're done with verification.
-
-6. Save transcript to `podcasts/<name>-transcript.md` with **A:** / **B:** prefixes.
-
-7. Generate audio:
+6. **Generate audio:**
    ```bash
    source /workspace/.env && bash /workspace/generate.sh /tmp/dialogue.json podcasts/<name>.mp3
    ```
-   Default is `gemini-3.1-flash-tts-preview` (newest TTS model). The `gemini-2.5-*` models are older generation; don't reach for them reflexively.
+   For dialogues ≥8000 words (≥50 min audio), prepend `PODCAST_BATCH_SIZE=4` to avoid late-batch TTS timeouts. Also drop to 4 if prosody sounds rushed on shorter episodes.
 
-   **Batch size:** default batch size is 8. For dialogues **≥ 8,000 words** (roughly ≥ 50 min target, and any 60-min Pimsleur episode), start with the smaller batch from the first run — don't wait for late-batch TTS timeouts to force a retry:
+7. **Deliver via Telegram:**
    ```bash
-   source /workspace/.env && PODCAST_BATCH_SIZE=4 bash /workspace/generate.sh /tmp/dialogue.json podcasts/<name>.mp3
-   ```
-   Same fix applies if prosody sounds rushed or Japanese code-switching sounds unnatural on shorter episodes.
-
-8. Deliver via Telegram:
-   ```bash
-   source /workspace/.env
    curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendAudio" \
      -F chat_id=${TELEGRAM_CHAT_ID} \
      -F audio=@"podcasts/<name>.mp3" \
-     -F title="<title>" \
-     -F caption="<one-line summary>"
+     -F title="<title>" -F caption="<one-line summary>"
    ```
 
-9. Write `/tmp/curriculum_update.yaml` (Pimsleur only):
-   ```yaml
-   episode: <N>
-   new_vocab_introduced:
-     - {word: "...", reading: "...", meaning: "...", times_used: 3}
-   new_grammar_introduced:
-     - {pattern: "...", meaning: "...", times_used: 4}
-   items_reviewed: [...]
-   estimated_japanese_ratio: 0.XX
-   actual_cjk_chars: <count>
-   total_dialogue_words: <count>
-   ```
+8. **Pimsleur only:** write `/tmp/curriculum_update.yaml` per `podcast-pimsleur.md`. The orchestrator syncs it back to `schedule.yaml` / `vocabulary.yaml`.
 
-10. Commit the transcript only (not the .mp3) and push. **Branch naming convention:** `autopilot/podcast-ep<N>-<slug>` for Pimsleur episodes, `autopilot/podcast-<slug>` otherwise. Do not invent per-run branch names with timestamps; stable names are easier to find later.
+9. **Commit** the transcript (NOT the .mp3) to branch `autopilot/podcast-ep<N>-<slug>` for Pimsleur, `autopilot/podcast-<slug>` otherwise. Push.
 
-## Dialogue length
+## Tone & voice
 
-- If brief specifies target audio length in minutes, use `words = minutes × 150` (Gemini TTS is ~150 wpm).
-- If brief specifies source-material-scaled, use ~1 min per 500 source words.
-- **Pimsleur episodes must hit the target length regardless of source material volume** — the whole point is repeated exposure, so pad with review weaving and tangent riffs rather than truncating.
+**Peg: Red Web / We Say Things.** Two knowledgeable friends co-investigating, dryly amused together. They like each other. They've been having this conversation for years. Dry humor comes from noticing things together, not from zingers at each other.
 
-## Structure
+**Both speakers have expertise** — not expert/novice. A and B each bring a *different* angle of skepticism toward the material. The interesting thing is the collision of their takes.
 
-Every episode has: hook → steelman (best honest case for the material) → deep dive → what-breaks (failure modes, load-bearing assumptions, prior art that killed similar attempts) → calibrated closer ("works if X, fails if Y, testable by Z"). Do NOT end on a celebration beat. Don't let structure become a template either — let the tangents be real.
+**Default posture: skeptical pragmatism.** Assume claims in the source are overstated, under-specified, or won't survive contact with reality. Job: stress-test the material, not celebrate it. Required move when there's a claim to test:
+
+**steelman → critique → calibrated close** ("works if X, fails if Y, testable by Z").
+
+Pimsleur mode relaxes this when the topic is a vehicle for vocab, not a claim being tested (see `podcast-pimsleur.md`).
+
+**Warm toward each other, skeptical toward the material.** Blunt about claims ("that's a press-release claim, not a technical one"); never sharp-edged at the other speaker ("read past the first sentence" — NO).
+
+## Hard gates (enforced by `verify-dialogue.py`)
+
+| Check | Rule | Failure |
+|---|---|---|
+| Speaker balance | A and B each 45–55% of words | Rewrite until balanced |
+| Banned phrases | None of the 16 AI-tell phrases | Remove each |
+| Sycophancy | ≤1 marker | Rewrite to drop compliments |
+| Combat | 0 markers | Soften tone toward speaker |
+| (Pimsleur) CJK floor | `ratio × words × 2` chars | Add more Japanese |
+| (Pimsleur) CJK coverage | 30–95% of turns have Japanese (scales with ratio) | Distribute Japanese across turns |
+| (Pimsleur) New vocab | Each item ≥3× (kanji OR reading matches) | Add exposures |
+| (Pimsleur) New grammar | Each pattern ≥4× | Add uses in varied contexts |
+| (Pimsleur) Review items | ≥10 distinct items present | Weave more review vocab in |
+
+See `verify-dialogue.py` for the full grep lists and exact thresholds.
+
+## Rationalization table — STOP if you catch yourself thinking these
+
+| "This is fine because..." | Reality |
+|---|---|
+| "It's a technical topic, A should explain, B should ask" | B is an expert in an adjacent frame. Rewrite. |
+| "The brief gave me a strong POV" | Interrogate it anyway. Premises are claims. |
+| "I need enthusiasm to hook the listener" | Specificity hooks. "Brilliant" and "wild" are AI tells. |
+| "Pushing back feels combative" | Warm pushback is the whole point. "Mm, is it really X?" |
+| "Sharpening dialogue raises the stakes" | Stakes come from the material. Soften the edge. |
+| "The Pimsleur ratio is just a vibe" | It's a character count, script-enforced. |
+| "I can use kanji; readers know them" | TTS mispronounces kanji. Prefer kana. |
+| "Three exposures clustered is fine" | Spaced repetition needs spacing. 20/50/80% marks. |
+| "This curriculum item fits better than what's listed" | Do NOT substitute. `schedule.yaml` is verbatim. |
+| "My dialogue is basically at ratio" | Run the script. Measure, don't estimate. |
+
+## Red flags — STOP and rewrite
+
+- "That's wild" / "tell me more" / "great point" / "brilliant" anywhere
+- B's average turn length < 60% of A's
+- Japanese items clustered in the first third
+- Any explicit grammar lecture ("this is the conditional form")
+- Celebration ending ("so excited to see where this goes")
+- "Read past the first sentence," "I'll bring popcorn" — sharp edges at the other speaker
+- A vocab item not in `schedule.yaml episode_<N>`
+- Verification script not run, or run and edited thresholds to pass
+
+All of these = rewrite, not ship.
+
+## Audio defaults
+
+- Model: `gemini-3.1-flash-tts-preview` (newest). Older `gemini-2.5-*` models are not better.
+- Voices: Charon (A), Kore (B). Override via `PODCAST_GEMINI_VOICE_A/B`.
+- Pace: natural — no `[fast]` tag. Override via `PODCAST_PACE` only if explicitly needed.
+- Batch size: 8 default, 4 for long episodes or when prosody is rushed.
 
 ## What this skill does NOT do
 
 - Does NOT write a summary. This is a conversation.
-- Does NOT produce clean transitions ("speaking of which", "on that note").
+- Does NOT produce clean transitions ("speaking of which," "on that note").
 - Does NOT make B a reaction machine.
-- Does NOT ship without the pre-submit verification passing.
+- Does NOT ship without `verify-dialogue.py` passing.
