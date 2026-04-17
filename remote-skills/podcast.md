@@ -247,7 +247,7 @@ Both A and B code-switch naturally. Neither is "the teacher." A drops Japanese t
    ```bash
    source /workspace/.env && bash /workspace/generate.sh /tmp/dialogue.json podcasts/<name>.mp3
    ```
-   If audio fidelity matters for the content (music, foreign-language, complex pacing), override `PODCAST_GEMINI_MODEL=gemini-2.5-pro-preview-tts` for higher quality; otherwise default is fine. Smaller batches (`PODCAST_BATCH_SIZE=4`) produce better prosody for dialogue.
+   Default is `gemini-3.1-flash-tts-preview` (newest TTS model). If prosody sounds rushed or Japanese code-switching sounds unnatural, try smaller batches (`PODCAST_BATCH_SIZE=4`) — this is usually the fix, not the model. The `gemini-2.5-*` models exist but are older generation; don't reach for them reflexively.
 
 8. Deliver via Telegram:
    ```bash
