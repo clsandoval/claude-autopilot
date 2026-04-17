@@ -35,6 +35,7 @@ The user wants to fire and forget. Send a brief (can be vague), and the agent wi
 |---|---|---|
 | `/autopilot` | Remote | New job — intake, configure, dispatch |
 | `/autopilot podcast <brief>` | Remote | Dispatch managed agent to research + write dialogue + generate audio + deliver via Telegram |
+| `/autopilot podcast pimsleur <brief>` | Remote | Dispatch bilingual Japanese immersion podcast with curriculum tracking |
 | `/autopilot investigate <brief>` | Remote | Dispatch managed agent to execute a spec + collect results + podcast findings + deliver via Telegram |
 | `/autopilot status` | Local (polls remote) | Check progress, answer pending questions |
 | `/autopilot list` | Local (polls remote) | Show all tracked sessions |
@@ -63,6 +64,40 @@ The user wants to fire and forget. Send a brief (can be vague), and the agent wi
    - Construct brief from user's input (the brief IS the source material for the podcast)
    - Create session and dispatch
    - The agent writes dialogue, generates audio via ElevenLabs, delivers to Telegram
+
+**Pimsleur variant:** When the brief starts with "pimsleur" or the subcommand is `/autopilot podcast pimsleur <brief>`, the intake flow changes:
+
+   **Step 1 — Determine episode number**
+   - Read `monorepo/data/japanese/profile.yaml` → `episodes_completed` field
+   - The next episode number = `episodes_completed + 1`
+   - If dispatching multiple episodes at once (e.g. 4 in parallel), assign sequential numbers: N, N+1, N+2, N+3
+
+   **Step 2 — Read from schedule.yaml (DO NOT select ad-hoc)**
+   - Read `monorepo/data/japanese/schedule.yaml`
+   - Find the slot for `episode_N` — use its `vocab`, `grammar`, and `japanese_ratio` exactly as specified
+   - If the slot status is `queued`, proceed. If `dispatched` or `completed`, warn the user before re-dispatching.
+   - If the episode slot doesn't exist in schedule.yaml yet, read `vocabulary.yaml` and `grammar.yaml` to select the next `not_started` items (5-6 vocab, 1 grammar), write the new slot to schedule.yaml first, then dispatch
+
+   **Step 3 — Build review list**
+   - Read `vocabulary.yaml` and `grammar.yaml` for all items with status `new` or `learning`
+   - Include all of them as review items (the agent weaves them in naturally — no upper cap)
+   - Items from the most recent 2 episodes get priority mention in the brief
+
+   **Step 4 — Mark slot as dispatched**
+   - Update `schedule.yaml`: set `episode_N.status = dispatched`
+   - Increment `profile.yaml` `episodes_completed` by the number of episodes being dispatched
+   - Commit: `git add data/japanese/ && git commit -m "pimsleur: dispatch episode N"`
+
+   **Step 5 — Bundle and dispatch**
+   - Bundle into an augmented brief with a `[PIMSLEUR]` marker
+   - Upload `profile.yaml`, `grammar.yaml` as session resources at `/workspace/japanese/`
+   - Upload `schedule.yaml` as a session resource at `/workspace/japanese/schedule.yaml`
+   - Dispatch with the podcast skill — the `[PIMSLEUR]` marker activates bilingual immersion mode in `remote-skills/podcast.md`
+
+   **After completion:** On `/autopilot status`, sync curriculum_update.yaml back:
+   - Mark introduced vocab/grammar items as `new` in vocabulary.yaml / grammar.yaml
+   - Update `profile.yaml` `total_exposure_hours`
+   - Commit: `git add data/japanese/ && git commit -m "pimsleur: sync ep N curriculum"`
 
 **On `/autopilot investigate <brief>`:**
 1. Read `setup.md` — ensure environment setup is complete
