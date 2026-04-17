@@ -46,6 +46,8 @@ The podcast target is two knowledgeable friends **co-investigating** a topic —
 
 Blunt is fine, but bluntness is aimed at the **material**, not at the other speaker. "That claim is a press-release claim, not a technical one" is good. "Read past the first sentence" is not.
 
+**Reconciling with the skeptical-pragmatism posture below:** warmth and skepticism aren't opposites. The speakers warmly investigate whether the thing actually works. They're the friends who'd say "I want this to be good, so let me tell you the three ways I think it breaks." Warm toward each other, skeptical toward the material.
+
 ## Banned phrases (AI-dialogue crutches)
 
 The agent MUST grep the dialogue for these and remove/rewrite. If any remain at verification time, the dialogue fails the pre-submit check:
@@ -115,23 +117,6 @@ Sycophancy marker list (integrated into the pre-submit script in step 4; >1 hit 
 "really well put", "couldn't have said", "nailed"
 ```
 
-## Required moments
-
-Every episode MUST contain AT LEAST:
-
-- **2 explicit steelmans** — one speaker articulates the strongest version of a claim (ideally a claim they're about to critique). Signal phrase: "steelman this for me" / "okay, best case for this is..." / "the strongest version of that argument is..."
-- **3 disagreements** — substantive pushback, *warmly delivered*: "mm, I don't know about that" / "is it really five minutes?" / "wait — that's the same as the cache, right?" NEVER combative ("you're wrong," "read the docs"). Pushback is aimed at the material or the reasoning, not the speaker.
-- **2 "what breaks this"** — speaker names a specific failure mode, load-bearing assumption, or prior art that killed a similar attempt
-- **2 self-corrections** — speaker changes their mind mid-sentence or backs off a claim
-- **2 interruption recoveries** — one cuts the other off, then they recover the thread
-- **1 concession** — A or B admits the other is right about something
-- **1 tangent** — they wander off-topic for 4+ turns then one of them pulls it back
-- **1 moment they're both fired up about the same thing** — preferably agreeing that something is *broken*, not that something is great
-- **1 "wait, go back"** — B catches something A glossed over
-- **1 calibrated closing position** — not "this is great" and not "this is doomed"; a specific "works if X, fails if Y, testable by Z"
-
-These aren't nice-to-haves; they're the checksum that distinguishes real conversation from AI-podcast slop.
-
 ## Balance rule (hard constraint)
 
 Word count per speaker: each between 45% and 55% of total dialogue words. Outside this range = rewrite, not ship.
@@ -143,6 +128,24 @@ Average turn length: within 30% of each other. If A's average turn is 50 words a
 ## Pimsleur Mode — Bilingual Japanese Immersion
 
 Activated by `[PIMSLEUR]` marker in the brief. Overrides the standard dialogue style with these rules.
+
+### Method: what Pimsleur actually is, and how a podcast adapts it
+
+The Pimsleur method rests on four principles:
+
+1. **Graduated interval recall (spaced repetition).** Each new item is recalled at increasing intervals — roughly 5 seconds, 25s, 2 minutes, 10 minutes, 1 hour, and so on, each exposure roughly doubling the gap. A podcast can't page-fault on "did you remember?" the way an interactive lesson does, but it CAN stage exposures of each new item across the episode at widening intervals rather than clustered.
+2. **Anticipation (pass-through).** Classical Pimsleur forces the learner to *produce* the target before hearing it. A passive-listen podcast can't force production, but it can simulate the beat: A says the English meaning, there's a pause or hesitation, then B uses the Japanese. The listener's brain fills the gap.
+3. **Core vocabulary, high-utility patterns.** Pimsleur focuses on function words and common structures first, not obscure vocabulary. The `schedule.yaml` curriculum encodes this — do not override it.
+4. **Organic grammar (inductive, not metalinguistic).** Never say "this is the conditional form" or explain tenses. Use the grammar pattern 4+ times across varied contexts; the listener's brain absorbs the rule from the pattern. Explicit grammar-talk breaks the illusion and loses listeners.
+
+**How this shapes the dialogue:**
+
+- **Stage exposures with spacing, not clustering.** If a new vocab item appears at line 3, its second exposure should be line 15+, third exposure line 30+. Don't bunch all three exposures in the first third and then never mention the word again. Plot a rough exposure timeline before writing.
+- **Review items get the same spacing treatment.** Review items from past episodes should appear throughout, not all in one "review block."
+- **Anticipation beats.** Engineer 2-3 moments per episode where the English meaning lands first and the Japanese appears a beat later — as if the speaker hesitated, thought of the word, then said it. e.g. `"it was, uh — what's the word — a \"約束\", a promise."`
+- **No grammar lectures.** If a speaker would naturally explain a grammar point, cut it. Let the pattern recur instead.
+
+### Source of truth: schedule.yaml
 
 ### Source of truth: schedule.yaml
 
@@ -181,16 +184,20 @@ If the actual CJK count is below the minimum at verification time, the dialogue 
 
 ### New vocabulary (5-12 words per episode, from the episode schedule)
 
-Three-touch method, NON-NEGOTIABLE for each new vocab item:
+Three-exposure minimum per item, **spaced across the episode at widening intervals** (graduated interval recall — see Method section above). Each new vocab item must appear AT LEAST 3× total, with exposures roughly at the 20%, 50%, 80% marks of the episode (not clustered at the start).
 
-1. **First use**: Japanese word → brief pause → English gloss → use in a short Japanese+English sentence
-   - `"It was a 約束 (yakusoku) — a promise, basically. I had to go."`
-2. **Second use** (later in episode): Japanese with light context, no re-teaching
-   - `"That 約束 came back to bite us."`
-3. **Third use**: Japanese only, meaning clear from context
-   - `"Yeah, 約束なんだよね."`
+**Per-exposure scaffolding** (decreasing English support each time):
 
-Verify: each new vocab item appears ≥3 times in the dialogue.
+1. **First exposure**: meaning first (English), brief hesitation, then Japanese. Quoted for TTS.
+   - `"It was a, uh — what's the word — \"約束\", a promise, basically. I had to go."`
+2. **Second exposure** (later in episode): Japanese with light context, no re-teaching.
+   - `"That \"約束\" came back to bite us."`
+3. **Third exposure**: Japanese only, meaning clear from context.
+   - `"Yeah, \"約束なんだよね.\""`
+
+**Use the dictionary form at least once.** The pre-submit check does literal substring matching — if the curriculum item is `食べる` but the dialogue only uses `食べた` / `食べて`, the check will count 0 exposures. Include the dictionary form on at least one of the three exposures; inflected forms count as additional natural usage beyond that.
+
+Verify: each new vocab item appears ≥3 times in the dialogue, dictionary form included.
 
 ### New grammar (1-2 patterns per episode)
 
@@ -202,7 +209,26 @@ Previously learned vocab/grammar listed in the brief under `=== REVIEW ITEMS ===
 
 ### Speaker dynamics in Pimsleur Mode
 
-Both A and B code-switch naturally. Neither is "the teacher." A drops Japanese terms when excited. B picks them up, sometimes misuses them, self-corrects — `"wait, 予約を取ります? no, 予約する, right?"` — this teaches without lecturing.
+Both A and B code-switch naturally. Neither is "the teacher." A drops Japanese terms when excited. B picks them up, sometimes misuses them, self-corrects — `"wait, \"予約を取ります\"? no, \"予約する\", right?"` — this teaches without lecturing.
+
+### TTS enunciation: wrap Japanese in quotes
+
+Gemini 3.1 Flash TTS enunciates Japanese phrases noticeably better when they're wrapped in double quotes. Write every Japanese word, phrase, or sentence in the dialogue JSON inside `""`:
+
+```json
+{"speaker": "a", "text": "\"なあ,\" I've been staring at the session code. \"毎回,\" we pay four hundred milliseconds."}
+```
+
+Not:
+```json
+{"speaker": "a", "text": "なあ、I've been staring at the session code. 毎回、we pay four hundred milliseconds."}
+```
+
+This is a TTS rendering hint, not punctuation for the listener — the quotes function as "pronounce this as a quoted phrase" markers. Apply to all JP chunks including single words (`"約束"` not just `約束`), short fragments, and full sentences. English remains unquoted.
+
+Why: without quotes, the model sometimes skips the Japanese or runs it together with adjacent English with unclear boundaries. With quotes, each Japanese block gets its own prosodic unit and cleaner articulation.
+
+The quotes count toward the raw character total in the dialogue JSON, but the CJK regex in verification only counts kana/kanji chars, so the pre-submit gate is unaffected.
 
 ## Workflow
 
@@ -243,7 +269,8 @@ Both A and B code-switch naturally. Neither is "the teacher." A drops Japanese t
    cjk = len(re.findall(r"[\u3040-\u30ff\u4e00-\u9fff]", all_text))
    turns_with_cjk = sum(1 for t in a + b if re.search(r"[\u3040-\u30ff\u4e00-\u9fff]", t))
    banned = ["that's wild", "tell me more", "yeah exactly", "honestly", "genuinely",
-             "literally", "100%", "okay so", "right? right?", "love that", "that's fascinating"]
+             "literally", "100%", "okay so", "right? right?", "love that", "that's fascinating",
+             "wait what", "no way", "shut up", "mind blown", "big if true"]
    hits = [p for t in a + b for p in banned if p in t.lower()]
    sycophancy_markers = [
        "good point", "great point", "fair point", "that's a good",
@@ -285,6 +312,9 @@ Both A and B code-switch naturally. Neither is "the teacher." A drops Japanese t
    print(f"Sycophancy markers: {len(syco_hits)} — {syco_hits}")
    print()
    fails = []
+   if total == 0:
+       print("EMPTY DIALOGUE — dialogue.json has no content")
+       sys.exit(1)
    if not (0.45 <= wa/total <= 0.55):
        fails.append(f"BALANCE: A is {100*wa/total:.1f}% (must be 45-55%)")
    if hits:

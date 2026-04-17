@@ -17,7 +17,7 @@ OUTPUT_MP3="$2"
 GEMINI_VOICE_A="${PODCAST_GEMINI_VOICE_A:-Charon}"
 GEMINI_VOICE_B="${PODCAST_GEMINI_VOICE_B:-Kore}"
 GEMINI_MODEL="${PODCAST_GEMINI_MODEL:-gemini-3.1-flash-tts-preview}"
-GEMINI_PACE="${PODCAST_PACE:-[fast]}"
+GEMINI_PACE="${PODCAST_PACE-}"   # default: empty (natural pacing). Set PODCAST_PACE='[fast]' to rush.
 GEMINI_API_BASE="https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent"
 BATCH_SIZE="${PODCAST_BATCH_SIZE:-8}"
 
