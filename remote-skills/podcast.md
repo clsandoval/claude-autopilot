@@ -40,7 +40,6 @@ The agent MUST grep the dialogue for these and remove/rewrite. If any remain at 
 
 - "that's wild"
 - "tell me more"
-- "interesting" (as a standalone reaction)
 - "yeah exactly"
 - "honestly"
 - "genuinely"
@@ -50,6 +49,8 @@ The agent MUST grep the dialogue for these and remove/rewrite. If any remain at 
 - "right? right?"
 - "love that"
 - "that's fascinating"
+
+(`"interesting"` is a weak tell but skipped by the auto-check because it produces false positives in compound phrases — watch for it manually.)
 
 These are the tells. Real people don't talk like this; they use specific reactions tied to what was just said.
 
@@ -148,10 +149,12 @@ The brief specifies `Japanese Ratio Target` between 0.20 and 0.60. This measures
 
 **Minimum CJK character counts by episode length:**
 
+Formula: `min_cjk = ratio × dialogue_words × 2` (English word ≈ 2 moras of speaking time; CJK chars ≈ moras, so this equalizes spoken-time presence).
+
 | Audio target | Dialogue words | Min CJK chars at 0.20 | at 0.40 | at 0.60 |
 |--------------|----------------|----------------------|---------|---------|
-| 30 min       | ~4500          | 900                  | 1800    | 2700    |
-| 60 min       | ~9000          | 1800                  | 3600    | 5400    |
+| 30 min       | ~4500          | 1800                 | 3600    | 5400    |
+| 60 min       | ~9000          | 3600                 | 7200    | 10800   |
 
 If the actual CJK count is below the minimum at verification time, the dialogue FAILS and must be rewritten.
 
@@ -197,12 +200,14 @@ Both A and B code-switch naturally. Neither is "the teacher." A drops Japanese t
 4. **Run the pre-submit verification script BEFORE generating audio.** Set `RATIO`, `NEW_VOCAB`, and `REVIEW_ITEMS` from the brief's episode entry. For non-Pimsleur episodes set `RATIO=0` and leave vocab/review lists empty. Run this exactly:
 
    ```bash
-   # Fill these from the brief:
-   RATIO=0.20                              # from schedule.yaml episode_N.japanese_ratio (0 for non-Pimsleur)
-   NEW_VOCAB='相談,準備,予約,経験,意味'       # comma-sep, from schedule.yaml episode_N.vocab
-   REVIEW_ITEMS='落とす,返事,用事,予定,約束,連絡'  # comma-sep, from the brief's === REVIEW ITEMS === block
+   # REPLACE these placeholders with values from the brief before running.
+   # Do not ship with placeholder values — the check will pass vacuously.
+   RATIO=0.00                    # from schedule.yaml episode_N.japanese_ratio (0 for non-Pimsleur)
+   NEW_VOCAB=''                  # comma-sep, from schedule.yaml episode_N.vocab  (e.g. '用事,予定,約束')
+   NEW_GRAMMAR=''                # comma-sep, from schedule.yaml episode_N.grammar (e.g. 'なくちゃ')
+   REVIEW_ITEMS=''               # comma-sep, from the brief's === REVIEW ITEMS === block
 
-   RATIO="$RATIO" NEW_VOCAB="$NEW_VOCAB" REVIEW_ITEMS="$REVIEW_ITEMS" python3 <<'PY'
+   RATIO="$RATIO" NEW_VOCAB="$NEW_VOCAB" NEW_GRAMMAR="$NEW_GRAMMAR" REVIEW_ITEMS="$REVIEW_ITEMS" python3 <<'PY'
    import json, re, sys, os
    d = json.load(open("/tmp/dialogue.json"))
    a = [t["text"] for t in d if t["speaker"] == "a"]
@@ -214,16 +219,17 @@ Both A and B code-switch naturally. Neither is "the teacher." A drops Japanese t
    cjk = len(re.findall(r"[\u3040-\u30ff\u4e00-\u9fff]", all_text))
    turns_with_cjk = sum(1 for t in a + b if re.search(r"[\u3040-\u30ff\u4e00-\u9fff]", t))
    banned = ["that's wild", "tell me more", "yeah exactly", "honestly", "genuinely",
-             "literally", "100%", "love that", "that's fascinating"]
+             "literally", "100%", "okay so", "right? right?", "love that", "that's fascinating"]
    hits = [p for t in a + b for p in banned if p in t.lower()]
 
    ratio = float(os.environ.get("RATIO", "0") or 0)
    new_vocab = [x.strip() for x in os.environ.get("NEW_VOCAB", "").split(",") if x.strip()]
+   new_grammar = [x.strip() for x in os.environ.get("NEW_GRAMMAR", "").split(",") if x.strip()]
    review_items = [x.strip() for x in os.environ.get("REVIEW_ITEMS", "").split(",") if x.strip()]
 
-   # Expected min CJK: ratio * total_words * 2 (rough char/word heuristic for Japanese)
+   # min_cjk = ratio × dialogue_words × 2  (English word ≈ 2 moras; CJK chars ≈ moras)
    min_cjk = int(ratio * total * 2)
-   # Expected min turn coverage: at 0.20, ≥30% of turns have Japanese; scale linearly up to 0.60→90%
+   # Turn coverage scales linearly from 0.30 at ratio 0.20 to 0.90 at ratio 0.60
    min_turn_cjk_pct = min(0.30 + (ratio - 0.20) * 1.5, 0.95) if ratio > 0 else 0
    turn_pct = turns_with_cjk / max(len(a) + len(b), 1)
 
@@ -240,16 +246,20 @@ Both A and B code-switch naturally. Neither is "the teacher." A drops Japanese t
    if hits:
        fails.append(f"BANNED PHRASES: {set(hits)}")
    if ratio > 0:
+       if not new_vocab and not review_items:
+           fails.append("PIMSLEUR GATE: RATIO>0 but NEW_VOCAB and REVIEW_ITEMS are both empty — did you forget to substitute the placeholders?")
        if cjk < min_cjk:
            fails.append(f"CJK FLOOR: {cjk} < {min_cjk} required for ratio {ratio} — need {min_cjk - cjk} more Japanese chars")
        if turn_pct < min_turn_cjk_pct:
            fails.append(f"CJK COVERAGE: only {100*turn_pct:.1f}% of turns contain Japanese (need {100*min_turn_cjk_pct:.0f}%) — sprinkling single words isn't enough, write Japanese phrases/sentences")
-       # New vocab: each must appear ≥3 times
        for w in new_vocab:
            n = all_text.count(w)
            if n < 3:
                fails.append(f"NEW VOCAB: '{w}' appears {n}× (need ≥3)")
-       # Review items: each must appear ≥1 time
+       for g in new_grammar:
+           n = all_text.count(g)
+           if n < 4:
+               fails.append(f"NEW GRAMMAR: '{g}' appears {n}× (need ≥4)")
        missing = [w for w in review_items if all_text.count(w) == 0]
        if missing:
            fails.append(f"REVIEW ITEMS MISSING: {missing}")
@@ -261,10 +271,7 @@ Both A and B code-switch naturally. Neither is "the teacher." A drops Japanese t
 
    If the check fails, REWRITE the dialogue. Do not generate audio. Iterate until it passes. **Do not edit the thresholds to make the check pass** — rewrite the dialogue to include more Japanese phrases and sentences (not just single-word sprinkles).
 
-5. Verify Pimsleur-specific requirements (if `[PIMSLEUR]`):
-   - Each new vocab item appears ≥3 times (grep)
-   - CJK char count ≥ target min for ratio
-   - New grammar patterns appear ≥4 times each
+5. Pimsleur-specific gates (CJK floor, turn coverage, vocab ≥3× each, grammar ≥4× each, review items present) are enforced by the script above when `RATIO>0`. If the script printed `OK — ready for audio`, you're done with verification.
 
 6. Save transcript to `podcasts/<name>-transcript.md` with **A:** / **B:** prefixes.
 
