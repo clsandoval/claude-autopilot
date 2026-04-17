@@ -20,13 +20,39 @@ OUTPUT_MP3="$2"
 VOICE_A="${PODCAST_VOICE_A:-UgBBYS2sOqTuMpoF3BR0}"
 VOICE_B="${PODCAST_VOICE_B:-aGv5jHWKBy8K5xKvYeSX}"
 
-MODEL="${PODCAST_MODEL:-eleven_multilingual_v2}"
+MODEL="${PODCAST_MODEL:-eleven_v3}"
 API_BASE="https://api.elevenlabs.io/v1/text-to-speech"
+
+# Gemini TTS fallback voices (used when ElevenLabs is unavailable)
+GEMINI_VOICE_A="${PODCAST_GEMINI_VOICE_A:-Charon}"
+GEMINI_VOICE_B="${PODCAST_GEMINI_VOICE_B:-Kore}"
+GEMINI_API_BASE="https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent"
 
 # --- Preflight checks ---
 
+if [[ -z "${ELEVENLABS_API_KEY:-}" ]] && [[ -z "${GOOGLE_API_KEY:-}" ]]; then
+  echo "ERROR: Neither ELEVENLABS_API_KEY nor GOOGLE_API_KEY is set." >&2
+  exit 1
+fi
+
+# Detect which TTS backend to use
+USE_GEMINI=false
 if [[ -z "${ELEVENLABS_API_KEY:-}" ]]; then
-  echo "ERROR: ELEVENLABS_API_KEY is not set." >&2
+  echo "No ELEVENLABS_API_KEY — falling back to Gemini TTS (Charon/Kore)"
+  USE_GEMINI=true
+else
+  # Quick liveness check: probe ElevenLabs API
+  PROBE=$(curl -s -o /dev/null -w "%{http_code}" \
+    -H "xi-api-key: ${ELEVENLABS_API_KEY}" \
+    "https://api.elevenlabs.io/v1/user")
+  if [[ "$PROBE" != "200" ]]; then
+    echo "ElevenLabs returned HTTP $PROBE — falling back to Gemini TTS (Charon/Kore)"
+    USE_GEMINI=true
+  fi
+fi
+
+if [[ "$USE_GEMINI" == "true" ]] && [[ -z "${GOOGLE_API_KEY:-}" ]]; then
+  echo "ERROR: ElevenLabs unavailable and GOOGLE_API_KEY is not set." >&2
   exit 1
 fi
 
@@ -69,8 +95,12 @@ for i in $(seq 0 $((TOTAL - 1))); do
   PADDED=$(printf "%03d" "$i")
   CHUNK="$TMPDIR/${PADDED}-${SPEAKER}.mp3"
 
-  # Cache key: hash of speaker + voice + text
-  CACHE_KEY=$(echo -n "${VOICE_ID}:${MODEL}:${TEXT}" | sha256sum | cut -d' ' -f1)
+  if [[ "$USE_GEMINI" == "true" ]]; then
+    GEMINI_VOICE=$([ "$SPEAKER" == "a" ] && echo "$GEMINI_VOICE_A" || echo "$GEMINI_VOICE_B")
+    CACHE_KEY=$(echo -n "gemini:${GEMINI_VOICE}:${TEXT}" | sha256sum | cut -d' ' -f1)
+  else
+    CACHE_KEY=$(echo -n "${VOICE_ID}:${MODEL}:${TEXT}" | sha256sum | cut -d' ' -f1)
+  fi
   CACHE_FILE="${CACHE_DIR}/${CACHE_KEY}.mp3"
 
   if [[ -f "$CACHE_FILE" ]] && ! file "$CACHE_FILE" | grep -q "JSON\|text\|ASCII\|empty"; then
@@ -85,36 +115,64 @@ for i in $(seq 0 $((TOTAL - 1))); do
   RETRIES=0
   MAX_RETRIES=3
   while true; do
-    curl -s --max-time 30 -X POST "${API_BASE}/${VOICE_ID}" \
-      -H "xi-api-key: ${ELEVENLABS_API_KEY}" \
-      -H "Content-Type: application/json" \
-      -d "$(jq -n \
-        --arg text "$TEXT" \
-        --arg model "$MODEL" \
-        '{
-          text: $text,
-          model_id: $model,
-          voice_settings: {
-            stability: 0.5,
-            similarity_boost: 0.75,
-            style: 0.5,
-            use_speaker_boost: true
-          }
-        }')" \
-      -o "$CHUNK"
+    if [[ "$USE_GEMINI" == "true" ]]; then
+      AUDIO_B64=$(curl -sS --max-time 30 \
+        "${GEMINI_API_BASE}?key=${GOOGLE_API_KEY}" \
+        -H "Content-Type: application/json" \
+        -d "$(jq -n \
+          --arg text "$TEXT" \
+          --arg voice "$GEMINI_VOICE" \
+          '{
+            contents: [{parts: [{text: $text}]}],
+            generationConfig: {
+              responseModalities: ["AUDIO"],
+              speechConfig: {voiceConfig: {prebuiltVoiceConfig: {voiceName: $voice}}}
+            }
+          }')" | jq -r '.candidates[0].content.parts[0].inlineData.data // empty')
 
-    # Check for valid audio
-    if file "$CHUNK" | grep -q "JSON\|text\|ASCII"; then
-      RETRIES=$((RETRIES + 1))
-      if [[ $RETRIES -ge $MAX_RETRIES ]]; then
-        echo "ERROR: ElevenLabs API returned an error for line $i after $MAX_RETRIES retries:" >&2
-        cat "$CHUNK" >&2
-        exit 1
+      if [[ -z "$AUDIO_B64" ]]; then
+        RETRIES=$((RETRIES + 1))
+        if [[ $RETRIES -ge $MAX_RETRIES ]]; then
+          echo "ERROR: Gemini TTS returned no audio for line $i after $MAX_RETRIES retries" >&2
+          exit 1
+        fi
+        sleep $((2 ** RETRIES))
+        continue
       fi
-      DELAY=$((2 ** RETRIES))
-      echo "    Retry $RETRIES/$MAX_RETRIES (waiting ${DELAY}s)..."
-      sleep "$DELAY"
-      continue
+
+      echo "$AUDIO_B64" | base64 -d > /tmp/_gemini_pcm.raw
+      ffmpeg -y -f s16le -ar 24000 -ac 1 -i /tmp/_gemini_pcm.raw "$CHUNK" 2>/dev/null
+    else
+      curl -s --max-time 30 -X POST "${API_BASE}/${VOICE_ID}" \
+        -H "xi-api-key: ${ELEVENLABS_API_KEY}" \
+        -H "Content-Type: application/json" \
+        -d "$(jq -n \
+          --arg text "$TEXT" \
+          --arg model "$MODEL" \
+          '{
+            text: $text,
+            model_id: $model,
+            voice_settings: {
+              stability: 0.5,
+              similarity_boost: 0.75,
+              style: 0.5,
+              use_speaker_boost: true
+            }
+          }')" \
+        -o "$CHUNK"
+
+      if file "$CHUNK" | grep -q "JSON\|text\|ASCII"; then
+        RETRIES=$((RETRIES + 1))
+        if [[ $RETRIES -ge $MAX_RETRIES ]]; then
+          echo "ERROR: ElevenLabs API returned an error for line $i after $MAX_RETRIES retries:" >&2
+          cat "$CHUNK" >&2
+          exit 1
+        fi
+        DELAY=$((2 ** RETRIES))
+        echo "    Retry $RETRIES/$MAX_RETRIES (waiting ${DELAY}s)..."
+        sleep "$DELAY"
+        continue
+      fi
     fi
 
     # Valid audio — cache it
