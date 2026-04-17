@@ -25,16 +25,26 @@ This is the single most common failure mode. Agents default to A-explains-B-reac
 
 Neither speaker is "the optimist." Neither is the hype-person. If either of them ever catches themselves sounding like a booster, the other calls it out.
 
-B is not a prompt-machine. B pushes back. B brings their own examples. B sometimes takes the conversation somewhere A didn't anticipate. B is sometimes right and A has to concede — and vice versa.
+B is not a prompt-machine. B brings their own angle, their own examples, their own curiosity. B sometimes catches something A glossed over, and when they disagree, they say so — **warmly, not combatively** ("hmm, I don't know about that" or "wait, is it really X?"). B is sometimes right and A concedes ("oh — yeah, that's fair"), and vice versa.
 
-If the brief describes the speakers as expert/novice, reinterpret it — make B an expert in something adjacent that illuminates the topic from a different direction.
+If the brief describes the speakers as expert/novice, reinterpret it — make B an expert in something adjacent that illuminates the topic from a different direction. Same warmth still applies.
 
-## Style
+## Style — tone peg: Red Web / We Say Things
 
-- Two friends riffing at a bar, not an interview. They interrupt, tangent, circle back.
-- Short sentences. False starts. "Wait, no — actually..." Self-correction mid-sentence.
-- Humor comes from specificity, not setups and punchlines.
-- Blunt: dumb things are called dumb.
+The podcast target is two knowledgeable friends **co-investigating** a topic — think **Red Web** (Annabel & Cayley) or **We Say Things** (Catherine Whitaker & David Law). They like each other, they've been having this same conversation for years, and they're dryly funny in a way that comes from noticing things together, not from zingers at each other.
+
+- Curious and investigative — "huh, wait, does that actually work?"
+- Dry humor, offhand, from the material itself — never forced, never mugging
+- Mutual amusement at the absurdity of whatever they're discussing
+- Gentle pushback when they disagree: "mm, I don't know about that" / "is it really five minutes?" — not "read past the first sentence."
+- When one is wrong, the other corrects without heat: "oh — wait, is it actually...?" / "hmm, yeah, that's fair"
+- They're on the same team, even when positions differ. Co-investigating, not debating.
+- Short sentences. False starts. Self-correction mid-sentence. "Wait, no — actually..."
+- Humor comes from specificity (concrete examples, dry asides), not from setups and punchlines.
+
+**Anti-combat guard (the opposite overcorrection from sycophancy).** The speakers are NOT hostile. No condescension, no sniping, no "read past the first sentence," no "I'll bring popcorn." If reading a line aloud would make Annabel or Cayley say "woah, easy" — rewrite it softer. The bar isn't debate-class; it's two friends at a coffee shop noticing something weird about the thing they care about.
+
+Blunt is fine, but bluntness is aimed at the **material**, not at the other speaker. "That claim is a press-release claim, not a technical one" is good. "Read past the first sentence" is not.
 
 ## Banned phrases (AI-dialogue crutches)
 
@@ -110,7 +120,7 @@ Sycophancy marker list (integrated into the pre-submit script in step 4; >1 hit 
 Every episode MUST contain AT LEAST:
 
 - **2 explicit steelmans** — one speaker articulates the strongest version of a claim (ideally a claim they're about to critique). Signal phrase: "steelman this for me" / "okay, best case for this is..." / "the strongest version of that argument is..."
-- **3 disagreements** — substantive pushback, not "hmm are you sure"
+- **3 disagreements** — substantive pushback, *warmly delivered*: "mm, I don't know about that" / "is it really five minutes?" / "wait — that's the same as the cache, right?" NEVER combative ("you're wrong," "read the docs"). Pushback is aimed at the material or the reasoning, not the speaker.
 - **2 "what breaks this"** — speaker names a specific failure mode, load-bearing assumption, or prior art that killed a similar attempt
 - **2 self-corrections** — speaker changes their mind mid-sentence or backs off a claim
 - **2 interruption recoveries** — one cuts the other off, then they recover the thread
@@ -245,6 +255,16 @@ Both A and B code-switch naturally. Neither is "the teacher." A drops Japanese t
    lower_text = all_text.lower()
    syco_hits = [m for m in sycophancy_markers if m in lower_text]
 
+   # Anti-combat check — the opposite overcorrection. The speakers are not
+   # hostile. No debate-class snark or condescension.
+   combat_markers = [
+       "read past", "read the docs", "you're wrong", "you are wrong",
+       "let me rephrase", "next time", "i'll bring popcorn",
+       "go pitch it", "that's not architecture", "reinvented",
+       "learn to read", "that's just", "obviously you",
+   ]
+   combat_hits = [m for m in combat_markers if m in lower_text]
+
    ratio = float(os.environ.get("RATIO", "0") or 0)
    new_vocab = [x.strip() for x in os.environ.get("NEW_VOCAB", "").split(",") if x.strip()]
    new_grammar = [x.strip() for x in os.environ.get("NEW_GRAMMAR", "").split(",") if x.strip()]
@@ -271,6 +291,9 @@ Both A and B code-switch naturally. Neither is "the teacher." A drops Japanese t
        fails.append(f"BANNED PHRASES: {set(hits)}")
    if len(syco_hits) > 1:
        fails.append(f"SYCOPHANCY: {len(syco_hits)} markers ({syco_hits}) — rewrite for pragmatic skepticism (see posture section)")
+   if combat_hits:
+       fails.append(f"COMBAT: {combat_hits} — speakers are Red Web / We Say Things warm, not debate-class combative. Soften.")
+   print(f"Combat markers: {len(combat_hits)} — {combat_hits}")
    if ratio > 0:
        if not new_vocab and not review_items:
            fails.append("PIMSLEUR GATE: RATIO>0 but NEW_VOCAB and REVIEW_ITEMS are both empty — did you forget to substitute the placeholders?")
