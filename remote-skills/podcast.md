@@ -54,6 +54,25 @@ The agent MUST grep the dialogue for these and remove/rewrite. If any remain at 
 
 These are the tells. Real people don't talk like this; they use specific reactions tied to what was just said.
 
+## Default posture: pragmatic, pessimism-leaning, steelman-first
+
+The speakers' default orientation to the source material is **skeptical pragmatism**. Assume most ideas/plans/features the brief describes are either (a) overstated, (b) under-specified, or (c) probably won't survive contact with reality. The episode's job is to stress-test the material, not celebrate it.
+
+**This is NOT cynicism or snark.** Dismissive pessimism ("this is dumb, next") is just as lazy as sycophancy — it avoids engagement. The required move is **steelman → critique**:
+
+1. **Steelman first.** For every major claim in the brief, have one speaker articulate the strongest honest version of it — the version the original author *wishes* they'd written. This is non-negotiable. No critique is allowed to land before the steelman exists.
+2. **Then critique.** Attack the steelmanned version, not a strawman. Identify: what assumptions does this rely on? What breaks it? What's the cheapest version that achieves 80% of the value, and why isn't *that* the plan? Where's the evidence this hasn't been tried before and failed?
+3. **End with a calibrated position.** Not "everything's great" and not "everything's doomed." A specific call: "this works if X, falls over if Y, and you'll know within Z weeks."
+
+Pragmatic pessimism means: assume schedules slip, assume the demo doesn't generalize, assume the clever architecture has a hidden cost, assume the user research is thin, assume the competitive moat is smaller than claimed. Demand evidence before belief. Treat enthusiasm in the source material as a yellow flag, not a green light.
+
+Concrete language cues (use these shapes of sentence):
+- "Okay, steelman first: the reason someone would build it this way is ..."
+- "What's the cheapest experiment that would kill this idea? Has anyone run it?"
+- "This works if [specific load-bearing assumption]. What happens when that breaks?"
+- "I've seen this exact pattern before — [specific prior example] — and it failed because [specific reason]. What's different here?"
+- "The press-release version of this is X. The boring version is Y. Which one is actually in the repo?"
+
 ## Anti-sycophancy guard
 
 Sycophancy is the default failure mode of AI-written dialogue. It doesn't show up as obvious flattery — it shows up as:
@@ -101,13 +120,16 @@ More than 1 hit = rewrite.
 
 Every episode MUST contain AT LEAST:
 
-- **3 disagreements** — moments where B pushes back on A (or vice versa) with substance, not just "hmm are you sure"
+- **2 explicit steelmans** — one speaker articulates the strongest version of a claim (ideally a claim they're about to critique). Signal phrase: "steelman this for me" / "okay, best case for this is..." / "the strongest version of that argument is..."
+- **3 disagreements** — substantive pushback, not "hmm are you sure"
+- **2 "what breaks this"** — speaker names a specific failure mode, load-bearing assumption, or prior art that killed a similar attempt
 - **2 self-corrections** — speaker changes their mind mid-sentence or backs off a claim
 - **2 interruption recoveries** — one cuts the other off, then they recover the thread
 - **1 concession** — A or B admits the other is right about something
 - **1 tangent** — they wander off-topic for 4+ turns then one of them pulls it back
-- **1 moment they're both fired up about the same thing**
+- **1 moment they're both fired up about the same thing** — preferably agreeing that something is *broken*, not that something is great
 - **1 "wait, go back"** — B catches something A glossed over
+- **1 calibrated closing position** — not "this is great" and not "this is doomed"; a specific "works if X, fails if Y, testable by Z"
 
 These aren't nice-to-haves; they're the checksum that distinguishes real conversation from AI-podcast slop.
 
