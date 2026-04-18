@@ -57,8 +57,12 @@ Output: `dialogue.json`, a transcript, an MP3 from Gemini TTS, a Telegram send.
    curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendAudio" \
      -F chat_id=${TELEGRAM_CHAT_ID} \
      -F audio=@"podcasts/<name>.mp3" \
-     -F title="<title>" -F caption="<one-line summary>"
+     -F title="<title>" -F caption="<caption>"
    ```
+
+   **Caption — Pimsleur episodes:** the caption MUST list every new vocab item and grammar pattern covered, with BOTH kanji and kana spellings plus the English meaning. Format each vocab line as `漢字 (かな) — meaning` and each grammar line as `〜pattern — meaning`. Group under `📚 New vocab:` and `📐 New grammar:` headings. If the caption exceeds Telegram's 1024-char limit, send the audio with a short caption, then follow with a `sendMessage` containing the full vocab/grammar list.
+
+   **Caption — non-Pimsleur:** one-line summary.
 
 8. **Pimsleur only:** write `/tmp/curriculum_update.yaml` per `podcast-pimsleur.md`. The orchestrator syncs it back to `schedule.yaml` / `vocabulary.yaml`.
 
