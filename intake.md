@@ -131,7 +131,7 @@ AGENT_RESPONSE=$(curl -sS https://api.anthropic.com/v1/agents \
     --argjson skills "$SKILLS_JSON" \
     '{
       name: $name,
-      model: {id: "claude-sonnet-4-6[1m]", speed: "standard"},
+      model: {id: "claude-sonnet-4-6", speed: "standard"},
       system: $system,
       skills: $skills,
       tools: [
