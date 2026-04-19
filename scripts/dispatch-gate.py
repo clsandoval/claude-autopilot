@@ -84,10 +84,22 @@ def cmd_check_credentials(args) -> int:
     return 1 if hard_fail else 0
 
 
+def find_skill_root(skill_path: Path) -> Path:
+    """Walk up from a manifest file to find the skill root (dir containing SKILL.md).
+
+    Falls back to the manifest's parent directory if no SKILL.md is found.
+    """
+    for ancestor in skill_path.parents:
+        if (ancestor / "SKILL.md").exists():
+            return ancestor
+    return skill_path.parent
+
+
 def cmd_check_payload(args) -> int:
     skill_path = Path(args.skill).resolve()
     fm = parse_frontmatter(skill_path)
-    skill_root = Path(os.environ.get("AUTOPILOT_SKILL_ROOT", skill_path.parent))
+    env_root = os.environ.get("AUTOPILOT_SKILL_ROOT")
+    skill_root = Path(env_root) if env_root else find_skill_root(skill_path)
     brief_dir = Path(args.brief_dir)
 
     failures = []
