@@ -1,3 +1,31 @@
+---
+name: remote-investigate
+description: Execute a spec's testable steps inside a Managed Agent container, collect real results, generate a data-grounded podcast, deliver via Telegram.
+credentials:
+  - name: ANTHROPIC_API_KEY
+    check: env
+    required: true
+  - name: GEMINI_API_KEY
+    check: env
+    required: true
+  - name: TELEGRAM_BOT_TOKEN
+    check: env
+    required: true
+  - name: TELEGRAM_CHAT_ID
+    check: env
+    required: true
+interview:
+  - id: spec_path
+    prompt: "Path to the spec/brief to execute?"
+  - id: needs_repo
+    prompt: "Does the investigation need a GitHub repo mounted? (y/n)"
+  - id: cost_ceiling
+    prompt: "Max spend for the investigation? (e.g., '$5')"
+payload:
+  - path: scripts/generate.sh
+    required: true
+---
+
 # Remote Investigate — Spec-to-Execution-to-Audio (Managed Agent Version)
 
 This skill runs inside an Anthropic Managed Agent container. It executes a spec's testable
