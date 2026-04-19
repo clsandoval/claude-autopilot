@@ -1,3 +1,35 @@
+---
+name: remote-podcast-pimsleur
+description: Pimsleur bilingual Japanese immersion variant of remote-podcast. Triggered by [PIMSLEUR] marker in the brief. Loaded as a reference by remote-podcast.md.
+credentials:
+  - name: ANTHROPIC_API_KEY
+    check: env
+    required: true
+  - name: GEMINI_API_KEY
+    check: env
+    required: true
+  - name: TELEGRAM_BOT_TOKEN
+    check: env
+    required: true
+  - name: TELEGRAM_CHAT_ID
+    check: env
+    required: true
+interview:
+  - id: episode_number
+    prompt: "Episode number? (auto-read from profile.yaml if blank)"
+  - id: ratio_override
+    prompt: "Override japanese_ratio from schedule.yaml? (leave blank to use scheduled)"
+  - id: topic_vehicle
+    prompt: "Topic used as the vehicle for vocab (trip planning, daily life, etc.)?"
+payload:
+  - path: scripts/generate.sh
+    required: true
+  - path: scripts/verify-dialogue.py
+    required: true
+  - path: remote-skills/podcast-pimsleur.md
+    required: true
+---
+
 # Pimsleur Mode — reference
 
 Loaded when the brief contains `[PIMSLEUR]`. This is the spaced-repetition language layer that turns a normal podcast into a Japanese immersion lesson.
