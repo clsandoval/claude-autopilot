@@ -1,6 +1,33 @@
 ---
 name: remote-podcast
 description: Use when generating a two-speaker podcast episode from mounted source material in a Managed Agent container. Pimsleur bilingual Japanese immersion activates via `[PIMSLEUR]` marker in the brief.
+credentials:
+  - name: ANTHROPIC_API_KEY
+    check: env
+    required: true
+  - name: GEMINI_API_KEY
+    check: env
+    required: true
+  - name: TELEGRAM_BOT_TOKEN
+    check: env
+    required: true
+  - name: TELEGRAM_CHAT_ID
+    check: env
+    required: true
+interview:
+  - id: source_artifact
+    prompt: "Path to the source artifact (spec, plan, doc) OR a topic brief?"
+  - id: episode_name
+    prompt: "Episode name / slug?"
+  - id: duration
+    prompt: "Target duration (e.g., '30 min', '60 min')?"
+  - id: angle
+    prompt: "One non-obvious thread or claim this episode should make?"
+payload:
+  - path: scripts/generate.sh
+    required: true
+  - path: scripts/verify-dialogue.py
+    required: true
 ---
 
 # Remote Podcast
