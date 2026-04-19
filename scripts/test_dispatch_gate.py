@@ -132,3 +132,54 @@ def test_check_payload_includes_extra_paths_from_payload_json(tmp_path):
         env={"AUTOPILOT_SKILL_ROOT": str(tmp_path)},
     )
     assert result.returncode == 0
+
+
+def test_check_credentials_env_pass(tmp_path):
+    skill = write(tmp_path / "skill.md", """
+        ---
+        name: x
+        credentials:
+          - name: FAKE_KEY
+            check: env
+            required: true
+        ---
+        """)
+    result = run_gate("check-credentials", str(skill), env={"FAKE_KEY": "yes"})
+    assert result.returncode == 0, result.stderr
+    assert "FAKE_KEY" in result.stdout
+    assert "PASS" in result.stdout
+
+
+def test_check_credentials_env_fail(tmp_path):
+    skill = write(tmp_path / "skill.md", """
+        ---
+        name: x
+        credentials:
+          - name: MISSING_KEY_XYZ
+            check: env
+            required: true
+        ---
+        """)
+    clean = {k: v for k, v in os.environ.items() if k != "MISSING_KEY_XYZ"}
+    result = subprocess.run(
+        ["python3", str(SCRIPT), "check-credentials", str(skill)],
+        capture_output=True, text=True, env=clean,
+    )
+    assert result.returncode != 0
+    assert "MISSING_KEY_XYZ" in result.stdout + result.stderr
+
+
+def test_check_credentials_file_pass(tmp_path):
+    f = tmp_path / "thing.txt"
+    f.write_text("x")
+    skill = write(tmp_path / "skill.md", f"""
+        ---
+        name: x
+        credentials:
+          - name: {f}
+            check: file
+            required: true
+        ---
+        """)
+    result = run_gate("check-credentials", str(skill))
+    assert result.returncode == 0

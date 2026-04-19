@@ -35,6 +35,37 @@ def cmd_parse_manifest(args) -> int:
     return 0
 
 
+def cmd_check_credentials(args) -> int:
+    fm = parse_frontmatter(Path(args.skill))
+    rows = []
+    hard_fail = False
+    for entry in fm.get("credentials", []) or []:
+        name = entry.get("name")
+        check = entry.get("check", "env")
+        required = bool(entry.get("required", True))
+        if check == "env":
+            ok = bool(os.environ.get(name))
+            reason = "" if ok else "env var not set"
+        elif check == "file":
+            ok = Path(name).exists()
+            reason = "" if ok else "file not found"
+        elif check == "remote-secret":
+            ok = True
+            reason = "manual (remote-secret — verify in remote env)"
+        else:
+            ok = False
+            reason = f"unknown check type: {check}"
+        rows.append((name, check, "PASS" if ok else "FAIL", reason, required))
+        if not ok and required:
+            hard_fail = True
+
+    width = max((len(r[0]) for r in rows), default=10)
+    print(f"{'name'.ljust(width)}  check          status  note")
+    for name, check, status, reason, req in rows:
+        print(f"{name.ljust(width)}  {check.ljust(14)} {status}    {reason}")
+    return 1 if hard_fail else 0
+
+
 def cmd_check_payload(args) -> int:
     skill_path = Path(args.skill).resolve()
     fm = parse_frontmatter(skill_path)
@@ -105,6 +136,10 @@ def main() -> int:
     p.add_argument("skill")
     p.add_argument("brief_dir")
     p.set_defaults(func=cmd_check_payload)
+
+    p = sub.add_parser("check-credentials")
+    p.add_argument("skill")
+    p.set_defaults(func=cmd_check_credentials)
 
     args = parser.parse_args()
     return args.func(args)
