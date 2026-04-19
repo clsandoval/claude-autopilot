@@ -35,6 +35,41 @@ def cmd_parse_manifest(args) -> int:
     return 0
 
 
+def cmd_check_payload(args) -> int:
+    skill_path = Path(args.skill).resolve()
+    fm = parse_frontmatter(skill_path)
+    skill_root = Path(os.environ.get("AUTOPILOT_SKILL_ROOT", skill_path.parent))
+    brief_dir = Path(args.brief_dir)
+
+    failures = []
+    checked = []
+
+    for entry in fm.get("payload", []) or []:
+        rel = entry.get("path")
+        required = bool(entry.get("required", True))
+        full = skill_root / rel
+        checked.append(str(full))
+        if not full.exists() and required:
+            failures.append(f"skill payload missing: {rel}")
+
+    payload_json = brief_dir / "payload.json"
+    if payload_json.exists():
+        data = json.loads(payload_json.read_text())
+        for extra in data.get("extra", []) or []:
+            checked.append(extra)
+            if not Path(extra).exists():
+                failures.append(f"extra payload missing: {extra}")
+
+    if failures:
+        for f in failures:
+            print(f"FAIL: {f}")
+        return 1
+    print(f"PASS: {len(checked)} payload file(s) resolvable")
+    for c in checked:
+        print(f"  - {c}")
+    return 0
+
+
 def cmd_check_brief(args) -> int:
     brief_dir = Path(args.brief_dir)
     required = ["outcome.md", "behavior.md"]
@@ -65,6 +100,11 @@ def main() -> int:
     p = sub.add_parser("check-brief")
     p.add_argument("brief_dir")
     p.set_defaults(func=cmd_check_brief)
+
+    p = sub.add_parser("check-payload")
+    p.add_argument("skill")
+    p.add_argument("brief_dir")
+    p.set_defaults(func=cmd_check_payload)
 
     args = parser.parse_args()
     return args.func(args)

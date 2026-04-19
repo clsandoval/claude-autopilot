@@ -74,3 +74,61 @@ def test_check_brief_fails_if_behavior_empty(tmp_path):
     result = run_gate("check-brief", str(brief))
     assert result.returncode != 0
     assert "behavior.md" in result.stdout + result.stderr
+
+
+def test_check_payload_passes_when_all_files_exist(tmp_path):
+    (tmp_path / "scripts").mkdir()
+    (tmp_path / "scripts" / "tool.sh").write_text("#!/bin/sh\n")
+    skill = write(tmp_path / "skill.md", """
+        ---
+        name: x
+        payload:
+          - path: scripts/tool.sh
+            required: true
+        ---
+        """)
+    brief = tmp_path / "brief"
+    write(brief / "payload.json", '{"extra": []}')
+    result = run_gate(
+        "check-payload", str(skill), str(brief),
+        env={"AUTOPILOT_SKILL_ROOT": str(tmp_path)},
+    )
+    assert result.returncode == 0, result.stderr
+    assert "PASS" in result.stdout
+
+
+def test_check_payload_fails_on_missing_required(tmp_path):
+    skill = write(tmp_path / "skill.md", """
+        ---
+        name: x
+        payload:
+          - path: scripts/missing.sh
+            required: true
+        ---
+        """)
+    brief = tmp_path / "brief"
+    write(brief / "payload.json", '{"extra": []}')
+    result = run_gate(
+        "check-payload", str(skill), str(brief),
+        env={"AUTOPILOT_SKILL_ROOT": str(tmp_path)},
+    )
+    assert result.returncode != 0
+    assert "missing.sh" in result.stdout + result.stderr
+
+
+def test_check_payload_includes_extra_paths_from_payload_json(tmp_path):
+    skill = write(tmp_path / "skill.md", """
+        ---
+        name: x
+        payload: []
+        ---
+        """)
+    doc = tmp_path / "some_doc.md"
+    doc.write_text("hi")
+    brief = tmp_path / "brief"
+    write(brief / "payload.json", json.dumps({"extra": [str(doc)]}))
+    result = run_gate(
+        "check-payload", str(skill), str(brief),
+        env={"AUTOPILOT_SKILL_ROOT": str(tmp_path)},
+    )
+    assert result.returncode == 0
