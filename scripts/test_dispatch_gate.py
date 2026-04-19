@@ -1,4 +1,5 @@
 """Tests for dispatch-gate.py — the three-gate validator."""
+import json
 import os
 import subprocess
 import tempfile
@@ -47,3 +48,29 @@ def test_parse_manifest_extracts_three_sections(tmp_path):
     assert "FOO" in result.stdout
     assert "topic" in result.stdout
     assert "scripts/tool.sh" in result.stdout
+
+
+def test_check_brief_passes_with_both_files_non_empty(tmp_path):
+    brief = tmp_path / "brief"
+    write(brief / "outcome.md", "- [ ] Ship it\n")
+    write(brief / "behavior.md", "Explore first, then commit.\n")
+    result = run_gate("check-brief", str(brief))
+    assert result.returncode == 0, result.stderr
+    assert "PASS" in result.stdout
+
+
+def test_check_brief_fails_if_outcome_missing(tmp_path):
+    brief = tmp_path / "brief"
+    write(brief / "behavior.md", "Something.\n")
+    result = run_gate("check-brief", str(brief))
+    assert result.returncode != 0
+    assert "outcome.md" in result.stdout + result.stderr
+
+
+def test_check_brief_fails_if_behavior_empty(tmp_path):
+    brief = tmp_path / "brief"
+    write(brief / "outcome.md", "- [ ] Ship\n")
+    write(brief / "behavior.md", "\n   \n")
+    result = run_gate("check-brief", str(brief))
+    assert result.returncode != 0
+    assert "behavior.md" in result.stdout + result.stderr

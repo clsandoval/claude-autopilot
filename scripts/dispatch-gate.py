@@ -35,6 +35,25 @@ def cmd_parse_manifest(args) -> int:
     return 0
 
 
+def cmd_check_brief(args) -> int:
+    brief_dir = Path(args.brief_dir)
+    required = ["outcome.md", "behavior.md"]
+    failures = []
+    for name in required:
+        p = brief_dir / name
+        if not p.exists():
+            failures.append(f"{name}: MISSING")
+            continue
+        if not p.read_text().strip():
+            failures.append(f"{name}: EMPTY")
+    if failures:
+        for f in failures:
+            print(f"FAIL: {f}")
+        return 1
+    print("PASS: outcome.md and behavior.md present and non-empty")
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -42,6 +61,10 @@ def main() -> int:
     p = sub.add_parser("parse-manifest")
     p.add_argument("skill")
     p.set_defaults(func=cmd_parse_manifest)
+
+    p = sub.add_parser("check-brief")
+    p.add_argument("brief_dir")
+    p.set_defaults(func=cmd_check_brief)
 
     args = parser.parse_args()
     return args.func(args)
