@@ -1,4 +1,4 @@
-# Autopilot Status Check
+# Autopilot Poll — Session Status Flow
 
 ## Loading Sessions
 Read `.superpowers/autopilot-sessions.json`, check session count. If one: use it. If multiple: show list, ask which one.
