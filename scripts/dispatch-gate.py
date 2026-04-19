@@ -35,6 +35,24 @@ def cmd_parse_manifest(args) -> int:
     return 0
 
 
+def cmd_all(args) -> int:
+    class A:
+        pass
+    a = A()
+    a.brief_dir = args.brief_dir
+    a.skill = args.skill
+    rc = 0
+    print("=== Gate: brief ===")
+    rc |= cmd_check_brief(a)
+    print("\n=== Gate: payload ===")
+    rc |= cmd_check_payload(a)
+    print("\n=== Gate: credentials ===")
+    rc |= cmd_check_credentials(a)
+    print("\n=== Overall ===")
+    print("PASS" if rc == 0 else "FAIL")
+    return rc
+
+
 def cmd_check_credentials(args) -> int:
     fm = parse_frontmatter(Path(args.skill))
     rows = []
@@ -140,6 +158,11 @@ def main() -> int:
     p = sub.add_parser("check-credentials")
     p.add_argument("skill")
     p.set_defaults(func=cmd_check_credentials)
+
+    p = sub.add_parser("all")
+    p.add_argument("skill")
+    p.add_argument("brief_dir")
+    p.set_defaults(func=cmd_all)
 
     args = parser.parse_args()
     return args.func(args)

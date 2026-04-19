@@ -183,3 +183,55 @@ def test_check_credentials_file_pass(tmp_path):
         """)
     result = run_gate("check-credentials", str(skill))
     assert result.returncode == 0
+
+
+def test_all_passes_when_every_gate_passes(tmp_path):
+    (tmp_path / "scripts").mkdir()
+    (tmp_path / "scripts" / "tool.sh").write_text("#!/bin/sh\n")
+    skill = write(tmp_path / "skill.md", """
+        ---
+        name: x
+        credentials:
+          - name: OK_VAR
+            check: env
+            required: true
+        interview:
+          - id: t
+            prompt: "?"
+        payload:
+          - path: scripts/tool.sh
+            required: true
+        ---
+        """)
+    brief = tmp_path / "brief"
+    write(brief / "outcome.md", "- [ ] done\n")
+    write(brief / "behavior.md", "explore\n")
+    write(brief / "payload.json", '{"extra": []}')
+    result = run_gate(
+        "all", str(skill), str(brief),
+        env={"OK_VAR": "1", "AUTOPILOT_SKILL_ROOT": str(tmp_path)},
+    )
+    assert result.returncode == 0, result.stderr
+
+
+def test_all_fails_when_any_gate_fails(tmp_path):
+    skill = write(tmp_path / "skill.md", """
+        ---
+        name: x
+        credentials:
+          - name: NOT_SET_ABC
+            check: env
+            required: true
+        ---
+        """)
+    brief = tmp_path / "brief"
+    write(brief / "outcome.md", "- [ ] done\n")
+    write(brief / "behavior.md", "explore\n")
+    write(brief / "payload.json", '{"extra": []}')
+    clean = {k: v for k, v in os.environ.items() if k != "NOT_SET_ABC"}
+    clean["AUTOPILOT_SKILL_ROOT"] = str(tmp_path)
+    result = subprocess.run(
+        ["python3", str(SCRIPT), "all", str(skill), str(brief)],
+        capture_output=True, text=True, env=clean,
+    )
+    assert result.returncode != 0
