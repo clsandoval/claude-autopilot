@@ -7,3 +7,7 @@ __pycache__/
 *.egg-info/
 dist/
 .eggs/
+
+# Per-dispatch brief directories (personal working state)
+briefs/*
+!briefs/.gitkeep
