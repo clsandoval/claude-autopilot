@@ -32,6 +32,7 @@ See `dispatch.md` for the full step-by-step flow.
 | `/autopilot` | Remote | New dispatch — runs the three-gate flow (see `dispatch.md`) |
 | `/autopilot podcast <brief>` | Remote | Three-gate dispatch using `remote-skills/podcast.md` |
 | `/autopilot podcast pimsleur <brief>` | Remote | Three-gate dispatch using `remote-skills/podcast-pimsleur.md` (episode numbering + curriculum logic runs during the interview step) |
+| `/autopilot podcast steelman <OWNER/REPO>` | Local orchestration + remote render | Respect-first-then-critique repo episode. See `skills/podcast-steelman/SKILL.md` |
 | `/autopilot investigate <brief>` | Remote | Three-gate dispatch using `remote-skills/investigate.md` |
 | `/autopilot status` | Local (polls remote) | See `poll.md` |
 | `/autopilot list` | Local (polls remote) | Show all tracked sessions |
@@ -57,6 +58,13 @@ See `dispatch.md` for the full step-by-step flow.
 3. Display table (see `poll.md` for format).
 
 **On `/podcast <file>` or `/investigate <file>`:** local skills handle these, no managed agents involved.
+
+**On `/autopilot podcast steelman <OWNER/REPO>`:**
+
+1. Read `skills/podcast-steelman/SKILL.md` — run the steelman-format workflow end-to-end
+2. Research (steelman artifact → user gate → tells artifact) happens locally under Claude Code supervision; this is deliberate — the format's quality depends on honest code-reading that benefits from tight loops
+3. Dialogue drafting runs as a local subagent producing `briefs/2026-04-22-flight-podcast/ep_NN.md`
+4. Render + Telegram delivery reuse `automations/flight-podcast/dispatch-ep.sh` unchanged
 
 ## Pimsleur Episode Numbering
 
